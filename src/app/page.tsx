@@ -1,7 +1,10 @@
+import Loading from "./Loading/loading";
+import Login from "./Login/login";
 export default function Home() {
   return (
-    <main className="min-h-screen p-8">
-      <h1 className="text-2xl font-bold">sgg</h1>
-    </main>
-  )
+    <div  >
+      {/* <Loading /> */}
+      <Login />
+    </div>
+  );
 }
