@@ -1,0 +1,35 @@
+version: '3.8'
+
+# ─── DESARROLLO ───────────────────────────────────
+# Se aplica AUTOMÁTICAMENTE cuando corrés: docker-compose up
+# Para producción, usar: docker-compose -f docker-compose.yml up
+
+services:
+
+  postgres:
+    ports:
+      - "5432:5432"   # Exponer para DBeaver / IntelliJ / psql local
+
+  api:
+    build:
+      target: development
+    volumes:
+      - ./sgg-api:/workspace
+      - ~/.m2:/root/.m2     # Cachear dependencias Maven entre rebuilds
+    ports:
+      - "8080:8080"
+      - "5005:5005"         # Puerto de debug JDWP
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
+      APP_CORS_WEB_ORIGIN: http://localhost:3000
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:8081,exp://localhost:8081,exp://192.168.1.0:8081
+
+  web:
+    volumes:
+      - ./sgg-web:/app
+      - /app/node_modules       # Evita que el bind mount pise node_modules del container
+      - /app/.next
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      NEXT_TELEMETRY_DISABLED: "1"

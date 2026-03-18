@@ -1,0 +1,47 @@
+# ─── Secrets ─────────────────────────────────────
+.env
+*.env.local
+*.env.production
+
+# ─── Java / Maven ────────────────────────────────
+sgg-api/target/
+sgg-api/.mvn/
+*.class
+*.jar
+!**/test-jar.jar
+
+# ─── Node / Next.js ──────────────────────────────
+sgg-web/node_modules/
+sgg-web/.next/
+sgg-web/.env.local
+sgg-web/out/
+
+# ─── React Native / Expo ─────────────────────────
+sgg-app/node_modules/
+sgg-app/.expo/
+sgg-app/dist/
+sgg-app/android/
+sgg-app/ios/
+sgg-app/.env
+
+# ─── Docker ──────────────────────────────────────
+# No ignorar docker-compose files, son parte del repo
+
+# ─── OS ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ─── IDE ─────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+
+# ─── Backups ─────────────────────────────────────
+backups/
+
+# ─── Logs ────────────────────────────────────────
+*.log
+logs/
