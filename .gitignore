@@ -5,7 +5,8 @@
 
 # ─── Java / Maven ────────────────────────────────
 sgg-api/target/
-sgg-api/.mvn/
+sgg-api/.mvn/wrapper/maven-wrapper.jar
+
 *.class
 *.jar
 !**/test-jar.jar

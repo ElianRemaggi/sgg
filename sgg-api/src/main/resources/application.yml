@@ -1,0 +1,80 @@
+spring:
+  application:
+    name: sgg-api
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/sgg}
+    username: ${SPRING_DATASOURCE_USERNAME:sgg_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:p1qwas}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_batch_fetch_size: 20
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${SUPABASE_JWKS_URI}
+
+server:
+  port: 8080
+  error:
+    include-message: never
+    include-stacktrace: never
+
+app:
+  cors:
+    web-origin: ${APP_CORS_WEB_ORIGIN:http://localhost:3000}
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:8081}
+
+logging:
+  level:
+    com.sgg: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    com.sgg: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    com.sgg: INFO
+    root: WARN

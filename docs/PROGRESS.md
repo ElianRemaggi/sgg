@@ -6,26 +6,27 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 
 ## Estado General
 
-**Fase actual:** 0 — Sin iniciar
-**Última actualización:** -
+**Fase actual:** 1 — Foundation (completada)
+**Última actualización:** 2026-03-19
 
 ---
 
 ## Fases
 
 ### Fase 1 — Foundation (semanas 1-2)
-- [ ] Inicializar proyecto Spring Boot (`sgg-api/`)
-- [ ] Configurar `pom.xml` con todas las dependencias
-- [ ] Configurar `application.yml` (dev y prod profiles)
-- [ ] Implementar módulo `common/` (SecurityConfig, CorsConfig, GlobalExceptionHandler, TenantContext, ApiResponse)
-- [ ] Implementar módulo `identity/` (User, AuthIdentity, /auth/sync, /users/me)
-- [ ] Configurar Flyway + migraciones V1-V2
-- [ ] Tests de integración: AuthSyncControllerTest, UserControllerTest
-- [ ] Inicializar proyecto Next.js (`sgg-web/`)
-- [ ] Configurar Supabase SSR en Next.js
-- [ ] Implementar login page
-- [ ] Docker Compose funcional (postgres + api + web)
-- [ ] Cloudflared tunnel configurado en servidor
+- [x] Inicializar proyecto Spring Boot (`sgg-api/`)
+- [x] Configurar `pom.xml` con todas las dependencias
+- [x] Configurar `application.yml` (dev y prod profiles)
+- [x] Implementar módulo `common/` (SecurityConfig, CorsConfig, GlobalExceptionHandler, TenantContext, ApiResponse)
+- [x] Implementar módulo `identity/` (User, AuthIdentity, /auth/sync, /users/me)
+- [x] Configurar Flyway + migraciones V1-V2
+- [x] Tests de integración: AuthSyncControllerTest (5/5), UserControllerTest (5/5)
+- [ ] Tests pendientes: GET /api/users/me/memberships (2 tests — requiere módulo tenancy, Fase 2)
+- [x] Inicializar proyecto Next.js (`sgg-web/`)
+- [x] Configurar Supabase SSR en Next.js
+- [x] Implementar login page
+- [x] Docker Compose funcional (postgres + api + web)
+- [x] Cloudflared tunnel configurado en servidor
 
 ### Fase 2 — Tenancy Core (semanas 3-4)
 - [ ] Implementar módulo `tenancy/` (Gym, GymMember)
@@ -90,7 +91,7 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 
 | Módulo | Tests escritos | Pasando | Cobertura |
 |--------|---------------|---------|-----------|
-| identity | 0 | 0 | - |
+| identity | 10 | 10 | AuthSyncControllerTest (5), UserControllerTest (5) |
 | tenancy | 0 | 0 | - |
 | coaching | 0 | 0 | - |
 | training | 0 | 0 | - |
@@ -102,4 +103,14 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 
 ## Notas y Decisiones en Progreso
 
-_(Agregar acá cualquier decisión tomada durante el desarrollo que no esté en la arquitectura)_
+- **SecurityConfig: `/api/auth/**` requiere autenticación.** A diferencia del template original en ARCHITECTURE.md que listaba `/api/auth/**` como `permitAll()`, se decidió requerir JWT para `/api/auth/sync` para evitar que usuarios no autenticados puedan crear registros arbitrarios en la BD. El endpoint recibe datos en el body pero la autenticación via JWT garantiza que solo usuarios válidos de Supabase puedan llamarlo.
+
+- **Testcontainers: singleton container pattern.** Se usa un container PostgreSQL estático compartido entre todas las clases de test (en `BaseIntegrationTest`) en lugar de `@Container` + `@Testcontainers`, para evitar problemas de lifecycle y reutilizar el Spring context entre tests.
+
+- **Google OAuth configurado.** Google Cloud Console OAuth 2.0 Client ID creado y habilitado en Supabase Authentication → Providers → Google. Login con Google funcional.
+
+- **CORS fix en SecurityConfig.** Se agregó `.cors(cors -> {})` al SecurityFilterChain para que Spring Security procese los preflight OPTIONS antes del filtro de autenticación. Sin esto, el browser no podía hacer fetch al backend desde el frontend.
+
+- **Maven Wrapper:** se agregó `mvnw` / `mvnw.cmd` al proyecto para no depender de Maven instalado globalmente.
+
+- **docker-compose.override.yml:** se removió el volume `/app/.next` del servicio web porque causaba conflicto con Next.js dev mode (el anonymous volume quedaba vacío y bloqueaba la generación del build manifest).

@@ -1,5 +1,8 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # SGG — SaaS Multi-Tenant para Gimnasios
-## Contexto Principal para Claude Code
 
 ---
 
@@ -53,8 +56,10 @@ sgg/
 - **Roles**: dos dimensiones independientes:
   - `users.platform_role`: `USER` | `SUPERADMIN` (global)
   - `gym_members.role`: `MEMBER` | `COACH` | `ADMIN` | `ADMIN_COACH` (por gym)
-- **Auth**: Supabase emite JWT → Spring Security los valida como Resource Server.
+- **Auth**: Supabase emite JWT → Spring Security los valida como Resource Server (JWKS URI).
+- **Multi-tenancy impl**: `TenantContext` (ThreadLocal) almacena `gym_id` actual. `TenantInterceptor` extrae `gymId` del path `/api/gyms/{gymId}/**` y valida acceso. Hibernate `@FilterDef` aplica `WHERE gym_id = :gymId` automáticamente.
 - **Clientes**: Next.js (admin/coach/superadmin) y React Native (members). Misma API, distintos endpoints por rol.
+- **Key libs backend**: Lombok, MapStruct 1.6 (DTO mapping), Testcontainers 1.19 (tests de integración).
 
 ---
 
@@ -138,11 +143,23 @@ docker-compose -f docker-compose.yml up --build -d
 # Correr tests del backend
 cd sgg-api && mvn test
 
-# Correr tests de integración
+# Correr tests de integración (Testcontainers + PostgreSQL real)
 cd sgg-api && mvn verify
 
-# Nueva migración Flyway
-# Crear archivo: src/main/resources/db/migration/V{n}__descripcion.sql
+# Correr un solo test
+cd sgg-api && mvn test -Dtest=NombreDelTestClass
+cd sgg-api && mvn test -Dtest=NombreDelTestClass#metodoEspecifico
+
+# Nueva migración Flyway (script automático)
+./scripts/new-migration.sh "descripcion_del_cambio"
+# O manual: crear src/main/resources/db/migration/V{n}__descripcion.sql
+
+# Backup de BD
+./scripts/backup-db.sh
+
+# Frontend web
+cd sgg-web && npm run dev       # Development
+cd sgg-web && npm run build     # Production build
 
 # App móvil
 cd sgg-app && npx expo start
@@ -176,3 +193,5 @@ cd sgg-app && npx expo start --tunnel   # si hay problemas de red en WSL2
 - App Móvil — Progreso, Gym y Perfil: `docs/mobile/screens/03-progress-gym-profile.md`
 - Infraestructura: `docs/infrastructure/INFRA.md`
 - Setup inicial: `docs/SETUP.md`
+- Progreso y fases: `docs/PROGRESS.md`
+- Templates de config: `docs/backend/pom.xml.template`, `docs/backend/application.yml.template`

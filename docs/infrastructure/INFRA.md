@@ -298,6 +298,51 @@ swap=4GB
 
 ---
 
+## Scripts de Deploy
+
+### Setup inicial del servidor
+
+Ejecutar **en el servidor** Ubuntu:
+```bash
+bash server-setup.sh
+```
+
+Instala Docker, Docker Compose, Git, clona el repo, crea `.env`, configura cron de backups diarios (3 AM), y verifica Cloudflared.
+
+### Deploy desde máquina local
+
+```bash
+# Configurar (una sola vez)
+export SGG_SERVER=ubuntu@tu-servidor
+export SGG_REMOTE_DIR=/home/ubuntu/sgg
+
+# Deploy completo: push → pull → build → restart → health check
+./scripts/deploy.sh
+
+# Deploy rápido (sin rebuild de imágenes Docker)
+./scripts/deploy.sh --quick
+
+# Ver estado de servicios
+./scripts/deploy.sh --status
+
+# Ver logs en vivo
+./scripts/deploy.sh --logs
+
+# Rollback al commit anterior (con backup de BD automático)
+./scripts/deploy.sh --rollback
+```
+
+**Flujo del deploy completo:**
+1. Verifica que no hay cambios locales sin commitear
+2. `git push` al repositorio
+3. SSH al servidor → `git pull`
+4. Backup automático de BD
+5. `docker compose -f docker-compose.yml up --build -d`
+6. Health check: espera hasta 60s que `/actuator/health` responda
+7. Muestra estado final de servicios
+
+---
+
 ## Problemas Comunes WSL2
 
 | Problema | Causa | Solución |
