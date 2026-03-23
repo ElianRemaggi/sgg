@@ -99,7 +99,7 @@ platform → tenancy, identity
 
 ## 🔐 Reglas de Seguridad
 
-- Nunca exponer endpoints sin autenticación salvo `/api/public/**` y `/api/auth/**`
+- Nunca exponer endpoints sin autenticación salvo `/api/public/**`, `/api/auth/**` y `GET /api/gyms/search`
 - Todo endpoint con `gymId` en el path debe pasar por `TenantInterceptor`
 - Validar siempre que el usuario autenticado pertenece al gym del path (salvo SUPERADMIN)
 - SUPERADMIN bypasea membresía pero no bypasea el seteo del TenantContext
@@ -116,6 +116,15 @@ platform → tenancy, identity
 - Excepciones de negocio: usar `BusinessException` del módulo `common`
 - Logs: usar SLF4J (`private static final Logger log = LoggerFactory.getLogger(...)`)
 - No usar `System.out.println` nunca
+
+---
+
+## 🗄️ Bases de Datos
+
+- **`sgg`** = producción. Se usa con `docker-compose -f docker-compose.yml up`
+- **`sgg_dev`** = desarrollo. Se usa con `docker-compose up` (override apunta aquí)
+- Nunca meter datos de prueba en `sgg`. Usar siempre `sgg_dev` + `seed-dev-db.sh`
+- Para resetear dev: `./scripts/reset-dev-db.sh` (dropea y recrea `sgg_dev`)
 
 ---
 
@@ -156,6 +165,12 @@ cd sgg-api && mvn test -Dtest=NombreDelTestClass#metodoEspecifico
 
 # Backup de BD
 ./scripts/backup-db.sh
+
+# BD de desarrollo: seed con datos de prueba
+./scripts/seed-dev-db.sh
+
+# BD de desarrollo: reset completo (drop + recreate + flyway)
+./scripts/reset-dev-db.sh
 
 # Frontend web
 cd sgg-web && npm run dev       # Development

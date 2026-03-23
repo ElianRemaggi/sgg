@@ -20,6 +20,7 @@ services:
       - "8080:8080"
       - "5005:5005"         # Puerto de debug JDWP
     environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sgg_dev   # BD de desarrollo separada
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DEVTOOLS_RESTART_ENABLED: "true"
       APP_CORS_WEB_ORIGIN: http://localhost:3000

@@ -103,14 +103,15 @@ session.enableFilter("tenantFilter").setParameter("gymId", gymId);
 ```java
 .authorizeHttpRequests(auth -> auth
     .requestMatchers("/api/public/**").permitAll()
-    .requestMatchers("/api/auth/**").permitAll()
+    .requestMatchers(HttpMethod.GET, "/api/gyms/search").permitAll()
     .requestMatchers("/api/platform/**").hasRole("SUPERADMIN")
-    .requestMatchers("/api/gyms/*/admin/**").hasAnyRole("ADMIN", "ADMIN_COACH", "SUPERADMIN")
-    .requestMatchers("/api/gyms/*/coach/**").hasAnyRole("COACH", "ADMIN_COACH", "SUPERADMIN")
-    .requestMatchers("/api/gyms/*/member/**").hasRole("MEMBER")
     .anyRequest().authenticated()
 )
 ```
+
+> **Nota:** Los roles por gym (ADMIN, COACH, etc.) NO se validan en SecurityConfig.
+> Se validan con `@PreAuthorize("@gymAccessChecker.isAdmin(#gymId)")` a nivel de método.
+> El `TenantInterceptor` verifica membresía activa antes de ejecutar el controller.
 
 ### GymAccessChecker
 
@@ -267,7 +268,9 @@ Maneja y formatea todas las excepciones en respuestas consistentes:
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     // 400 → MethodArgumentNotValidException (Bean Validation)
-    // 403 → AccessDeniedException
+    // 403 → AccessDeniedException (custom, de com.sgg.common.exception)
+    // 403 → AuthorizationDeniedException (Spring Security @PreAuthorize)
+    // 403 → TenantViolationException (acceso a gym sin membresía)
     // 404 → ResourceNotFoundException
     // 409 → BusinessException con conflicto
     // 500 → Exception genérica

@@ -98,20 +98,75 @@ Después de que el sistema esté corriendo:
 
 ```bash
 # 1. Registrarte en la app o panel web con tu cuenta
-# 2. Buscar tu supabase_uid en la BD
-docker exec -it sgg-postgres-1 psql -U sgg_admin -d sgg -c \
+# 2. Buscar tu supabase_uid en la BD (usar sgg_dev en desarrollo, sgg en prod)
+docker exec -it sgg-postgres-1 psql -U sgg_admin -d sgg_dev -c \
   "SELECT id, email, supabase_uid FROM users WHERE email = 'tu@email.com';"
 
 # 3. Asignarte SUPERADMIN directamente en BD (primera vez)
-docker exec -it sgg-postgres-1 psql -U sgg_admin -d sgg -c \
+docker exec -it sgg-postgres-1 psql -U sgg_admin -d sgg_dev -c \
   "UPDATE users SET platform_role = 'SUPERADMIN' WHERE email = 'tu@email.com';"
 
 # 4. Verificar
-docker exec -it sgg-postgres-1 psql -U sgg_admin -d sgg -c \
+docker exec -it sgg-postgres-1 psql -U sgg_admin -d sgg_dev -c \
   "SELECT email, platform_role FROM users WHERE platform_role = 'SUPERADMIN';"
 ```
 
 A partir de acá, podés promover otros superadmins desde el panel web en `/platform/admins`.
+
+---
+
+## Bases de Datos: Desarrollo vs Producción
+
+El proyecto usa **dos bases de datos separadas** en el mismo Postgres:
+
+| BD | Uso | Se conecta cuando... |
+|----|-----|---------------------|
+| `sgg` | Producción / MVP | `docker-compose -f docker-compose.yml up` |
+| `sgg_dev` | Desarrollo y pruebas manuales | `docker-compose up` (aplica override) |
+
+La separación se configura en `docker-compose.override.yml` que sobreescribe `SPRING_DATASOURCE_URL` para apuntar a `sgg_dev`.
+
+### Crear la BD de desarrollo (primera vez)
+
+```bash
+docker exec sgg-postgres-1 psql -U sgg_admin -d postgres -c "CREATE DATABASE sgg_dev OWNER sgg_admin;"
+```
+
+Flyway crea las tablas automáticamente al iniciar la API.
+
+### Credenciales para DBeaver
+
+| Campo | Valor |
+|-------|-------|
+| Host | `localhost` |
+| Port | `5432` |
+| Database | `sgg_dev` (dev) o `sgg` (prod) |
+| Username | `sgg_admin` |
+| Password | `p1qwas` |
+
+---
+
+## Scripts de Desarrollo
+
+### Seed — Datos de prueba
+
+```bash
+# 1. Logueate en http://localhost:3000 (crea tu usuario en la BD)
+# 2. Ejecutá el seed:
+./scripts/seed-dev-db.sh
+```
+
+Crea 3 gyms, 9 usuarios de prueba con distintos roles/estados para testear todas las funcionalidades.
+
+### Reset — Limpiar la BD de desarrollo
+
+```bash
+./scripts/reset-dev-db.sh
+```
+
+Dropea y recrea `sgg_dev`, reinicia la API (Flyway recrea las tablas). Después ejecutar el seed de nuevo.
+
+> **Importante:** Estos scripts solo afectan `sgg_dev`. La BD de producción `sgg` no se toca.
 
 ---
 
