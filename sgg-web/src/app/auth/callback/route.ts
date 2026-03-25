@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
 
     if (!error && data.session) {
       const user = data.session.user
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/sync`, {
+      const apiUrl = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL
+      await fetch(`${apiUrl}/api/auth/sync`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

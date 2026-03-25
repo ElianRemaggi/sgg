@@ -1,14 +1,15 @@
 package com.sgg.identity.controller;
 
 import com.sgg.common.dto.ApiResponse;
+import com.sgg.common.security.SecurityUtils;
 import com.sgg.identity.dto.UpdateProfileRequest;
 import com.sgg.identity.dto.UserDto;
+import com.sgg.identity.entity.User;
+import com.sgg.identity.mapper.UserMapper;
 import com.sgg.identity.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -17,18 +18,20 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final SecurityUtils securityUtils;
+    private final UserMapper userMapper;
 
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<UserDto>> me(@AuthenticationPrincipal Jwt jwt) {
-        UserDto user = userService.getProfile(jwt.getSubject());
-        return ResponseEntity.ok(ApiResponse.ok(user));
+    public ResponseEntity<ApiResponse<UserDto>> me() {
+        User user = securityUtils.getCurrentUser();
+        return ResponseEntity.ok(ApiResponse.ok(userMapper.toDto(user)));
     }
 
     @PutMapping("/me")
     public ResponseEntity<ApiResponse<UserDto>> updateProfile(
-            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody UpdateProfileRequest request) {
-        UserDto user = userService.updateProfile(jwt.getSubject(), request);
-        return ResponseEntity.ok(ApiResponse.ok(user));
+        User user = securityUtils.getCurrentUser();
+        UserDto updated = userService.updateProfile(user.getId(), request);
+        return ResponseEntity.ok(ApiResponse.ok(updated));
     }
 }

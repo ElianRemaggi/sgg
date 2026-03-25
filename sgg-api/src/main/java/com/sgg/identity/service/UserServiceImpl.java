@@ -71,15 +71,15 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserDto getProfile(String supabaseUid) {
-        User user = userRepository.findBySupabaseUid(supabaseUid)
+    public UserDto getProfile(Long userId) {
+        User user = userRepository.findById(userId)
             .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
         return userMapper.toDto(user);
     }
 
     @Override
-    public UserDto updateProfile(String supabaseUid, UpdateProfileRequest request) {
-        User user = userRepository.findBySupabaseUid(supabaseUid)
+    public UserDto updateProfile(Long userId, UpdateProfileRequest request) {
+        User user = userRepository.findById(userId)
             .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
 
         user.setFullName(request.fullName());

@@ -115,3 +115,58 @@ export interface UserDto {
   avatarUrl: string | null
   platformRole: string
 }
+
+// ─── Training DTOs ───
+
+export interface RoutineTemplateSummaryDto {
+  id: number
+  name: string
+  description: string | null
+  blocksCount: number
+  createdBy: { id: number; fullName: string } | null
+  createdAt: string
+}
+
+export interface RoutineTemplateDetailDto {
+  id: number
+  name: string
+  description: string | null
+  blocks: TemplateBlockDto[]
+  createdBy: { id: number; fullName: string } | null
+  createdAt: string
+}
+
+export interface TemplateBlockDto {
+  id: number
+  name: string
+  dayNumber: number
+  sortOrder: number
+  exercises: TemplateExerciseDto[]
+}
+
+export interface TemplateExerciseDto {
+  id: number
+  name: string
+  sets: number | null
+  reps: string | null
+  restSeconds: number | null
+  notes: string | null
+  sortOrder: number
+}
+
+export interface RoutineAssignmentDto {
+  id: number
+  templateName: string
+  memberName: string | null
+  startsAt: string
+  endsAt: string | null
+  createdAt: string
+}
+
+export interface MemberRoutineDto {
+  assignmentId: number
+  templateName: string
+  startsAt: string
+  endsAt: string | null
+  blocks: TemplateBlockDto[]
+}

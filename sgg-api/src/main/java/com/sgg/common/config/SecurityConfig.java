@@ -1,6 +1,7 @@
 package com.sgg.common.config;
 
 import com.sgg.common.security.CustomJwtAuthenticationConverter;
+import com.sgg.common.security.DualJwtDecoder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +19,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private final CustomJwtAuthenticationConverter jwtAuthenticationConverter;
+    private final DualJwtDecoder dualJwtDecoder;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -32,7 +34,9 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
+                .jwt(jwt -> jwt
+                    .decoder(dualJwtDecoder)
+                    .jwtAuthenticationConverter(jwtAuthenticationConverter))
             );
 
         return http.build();

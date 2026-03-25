@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Users, Settings, CalendarDays, Dumbbell, LogOut } from 'lucide-react'
+import { Users, Settings, CalendarDays, Dumbbell, ClipboardList, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -29,10 +29,12 @@ export function Sidebar({ gymId, gymName, role }: SidebarProps) {
 
   const coachLinks = [
     { href: `/gym/${gymId}/coach/templates`, label: 'Plantillas', icon: Dumbbell },
+    { href: `/gym/${gymId}/coach/assign`, label: 'Asignar Rutina', icon: ClipboardList },
   ]
 
   async function handleLogout() {
     await supabase.auth.signOut()
+    await fetch('/api/auth/native', { method: 'DELETE' })
     router.push('/login')
     router.refresh()
   }

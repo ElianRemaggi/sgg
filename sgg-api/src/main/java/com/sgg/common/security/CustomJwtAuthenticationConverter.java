@@ -4,6 +4,7 @@ import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.UserRepository;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
@@ -23,13 +24,25 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, Abstract
     public AbstractAuthenticationToken convert(Jwt jwt) {
         Collection<GrantedAuthority> authorities = new ArrayList<>();
 
-        String supabaseUid = jwt.getSubject();
-        userRepository.findBySupabaseUid(supabaseUid).ifPresent(user -> {
+        String subject = jwt.getSubject();
+        Optional<User> userOpt;
+
+        if (isNativeToken(jwt)) {
+            userOpt = userRepository.findById(Long.valueOf(subject));
+        } else {
+            userOpt = userRepository.findBySupabaseUid(subject);
+        }
+
+        userOpt.ifPresent(user -> {
             if ("SUPERADMIN".equals(user.getPlatformRole())) {
                 authorities.add(new SimpleGrantedAuthority("ROLE_SUPERADMIN"));
             }
         });
 
-        return new JwtAuthenticationToken(jwt, authorities, supabaseUid);
+        return new JwtAuthenticationToken(jwt, authorities, subject);
+    }
+
+    static boolean isNativeToken(Jwt jwt) {
+        return "sgg".equals(jwt.getClaimAsString("iss"));
     }
 }

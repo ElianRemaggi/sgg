@@ -22,7 +22,7 @@ public class AdminMembersController {
     private final SecurityUtils securityUtils;
 
     @GetMapping
-    @PreAuthorize("@gymAccessChecker.isAdmin(#gymId) or hasRole('SUPERADMIN')")
+    @PreAuthorize("@gymAccessChecker.isAdmin(#gymId) or @gymAccessChecker.isCoach(#gymId) or hasRole('SUPERADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<GymMemberDto>>> listMembers(
             @PathVariable Long gymId,
             @RequestParam(defaultValue = "ALL") String status,

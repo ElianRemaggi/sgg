@@ -12,3 +12,8 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: https://example.com/.well-known/jwks.json
+
+app:
+  jwt:
+    secret: test-secret-key-minimum-32-characters-long!!
+    expiration-ms: 86400000

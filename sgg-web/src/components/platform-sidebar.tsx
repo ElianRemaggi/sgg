@@ -19,6 +19,7 @@ export function PlatformSidebar() {
 
   async function handleLogout() {
     await supabase.auth.signOut()
+    await fetch('/api/auth/native', { method: 'DELETE' })
     router.push('/login')
     router.refresh()
   }

@@ -1,15 +1,12 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 
-const ERROR_MESSAGES: Record<string, string> = {
-  'Invalid login credentials': 'Email o contraseña incorrectos',
-  'Email not confirmed': 'Debés confirmar tu email antes de ingresar',
-  'Too many requests': 'Demasiados intentos. Esperá unos minutos.',
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export function LoginForm() {
   const router = useRouter()
@@ -22,7 +19,7 @@ export function LoginForm() {
 
   async function syncUser(session: Session) {
     const user = session.user
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/sync`, {
+    await fetch(`${API_URL}/api/auth/sync`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -44,21 +41,38 @@ export function LoginForm() {
     setLoading(true)
     setError('')
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      // Try native login first
+      const res = await fetch(`${API_URL}/api/public/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
 
-    if (authError) {
-      setError(ERROR_MESSAGES[authError.message] || authError.message)
-      setLoading(false)
-      return
-    }
+      const data = await res.json()
 
-    if (data.session) {
-      await syncUser(data.session)
-      router.push('/select-gym')
-      router.refresh()
+      if (res.ok) {
+        // Native login successful — store token in cookie
+        await fetch('/api/auth/native', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: data.data.token }),
+        })
+        router.push('/select-gym')
+        router.refresh()
+        return
+      }
+
+      // If native says "uses Google", show that message
+      if (data.message === 'Esta cuenta usa Google para ingresar') {
+        setError('Esta cuenta usa Google para ingresar. Usá el botón de Google.')
+        setLoading(false)
+        return
+      }
+
+      setError(data.message || 'Email o contraseña incorrectos')
+    } catch {
+      setError('Error de conexión')
     }
 
     setLoading(false)
@@ -162,6 +176,13 @@ export function LoginForm() {
           {loading ? 'Ingresando...' : 'Ingresar'}
         </button>
       </form>
+
+      <p className="text-center text-sm text-gray-600">
+        ¿No tenés cuenta?{' '}
+        <Link href="/register" className="text-blue-600 hover:underline">
+          Registrate
+        </Link>
+      </p>
     </div>
   )
 }

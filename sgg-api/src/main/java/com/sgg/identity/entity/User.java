@@ -29,8 +29,11 @@ public class User {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
-    @Column(name = "supabase_uid", nullable = false, unique = true, length = 100)
+    @Column(name = "supabase_uid", length = 100)
     private String supabaseUid;
+
+    @Column(name = "password_hash", length = 255)
+    private String passwordHash;
 
     @Column(name = "platform_role", nullable = false, length = 20)
     private String platformRole = "USER";

@@ -18,7 +18,7 @@ public class SecurityUtils {
     private final UserRepository userRepository;
     private User cachedUser;
 
-    public String getSupabaseUid() {
+    public String getSubject() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
             return jwt.getSubject();
@@ -26,16 +26,29 @@ public class SecurityUtils {
         return null;
     }
 
+    public String getSupabaseUid() {
+        return getSubject();
+    }
+
     public User getCurrentUser() {
         if (cachedUser != null) {
             return cachedUser;
         }
-        String uid = getSupabaseUid();
-        if (uid == null) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof Jwt jwt)) {
             throw new ResourceNotFoundException("Usuario no autenticado");
         }
-        cachedUser = userRepository.findBySupabaseUid(uid)
-            .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado para uid: " + uid));
+
+        String subject = jwt.getSubject();
+        if (CustomJwtAuthenticationConverter.isNativeToken(jwt)) {
+            cachedUser = userRepository.findById(Long.valueOf(subject))
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado para id: " + subject));
+        } else {
+            cachedUser = userRepository.findBySupabaseUid(subject)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado para uid: " + subject));
+        }
+
         return cachedUser;
     }
 

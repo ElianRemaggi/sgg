@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/api/client'
 import type { ApiResponse, MembershipDto } from '@/lib/api/types'
 import { redirect } from 'next/navigation'
 import { GymSelector } from './gym-selector'
+import { LogoutButton } from './logout-button'
 
 export default async function SelectGymPage() {
   let memberships: MembershipDto[] = []
@@ -31,6 +32,7 @@ export default async function SelectGymPage() {
           <div className="text-center text-muted-foreground">
             <p>No tenés membresías activas.</p>
             <p className="mt-2 text-sm">Pedile al administrador de tu gym que te envíe el link de invitación.</p>
+            <LogoutButton />
           </div>
         ) : (
           <GymSelector memberships={memberships} />

@@ -9,6 +9,11 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  // Check native token first
+  const nativeToken = request.cookies.get('sgg-token')?.value
+  const hasNativeAuth = !!nativeToken
+
+  // Check Supabase session
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -36,14 +41,17 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { session } } = await supabase.auth.getSession()
+  const isAuthenticated = hasNativeAuth || !!session
+
+  const isAuthPage = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register')
 
   // Protected routes: redirect to login if no session
-  if (!session && !request.nextUrl.pathname.startsWith('/login')) {
+  if (!isAuthenticated && !isAuthPage) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Already logged in and visiting /login: redirect to select-gym
-  if (session && request.nextUrl.pathname.startsWith('/login')) {
+  // Already logged in and visiting auth pages: redirect to select-gym
+  if (isAuthenticated && isAuthPage) {
     return NextResponse.redirect(new URL('/select-gym', request.url))
   }
 
@@ -52,6 +60,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/public).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/).*)',
   ],
 }

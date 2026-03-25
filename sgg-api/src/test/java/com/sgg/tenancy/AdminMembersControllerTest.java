@@ -81,10 +81,11 @@ class AdminMembersControllerTest extends BaseIntegrationTest {
     }
 
     @Test
-    void listMembers_asCoach_returns403() throws Exception {
+    void listMembers_asCoach_returns200() throws Exception {
+        // Coaches can list members (needed for routine assignment page)
         mockMvc.perform(get("/api/gyms/{gymId}/admin/members", gym.getId())
                 .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("coach-uid-001"))))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isOk());
     }
 
     @Test

@@ -8,7 +8,7 @@ public interface UserService {
 
     UserDto syncUser(SyncUserRequest request);
 
-    UserDto getProfile(String supabaseUid);
+    UserDto getProfile(Long userId);
 
-    UserDto updateProfile(String supabaseUid, UpdateProfileRequest request);
+    UserDto updateProfile(Long userId, UpdateProfileRequest request);
 }
