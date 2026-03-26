@@ -1,42 +1,56 @@
 import { apiClient } from '@/lib/api/client'
-import type { ApiResponse, MembershipDto } from '@/lib/api/types'
-import { redirect } from 'next/navigation'
+import type { ApiResponse, MembershipDto, UserDto } from '@/lib/api/types'
+import Link from 'next/link'
 import { GymSelector } from './gym-selector'
+import { GymSearch } from './gym-search'
 import { LogoutButton } from './logout-button'
 
 export default async function SelectGymPage() {
   let memberships: MembershipDto[] = []
+  let isSuperadmin = false
 
   try {
-    const res = await apiClient<ApiResponse<MembershipDto[]>>('/api/users/me/memberships')
-    memberships = res.data
+    const [membershipsRes, userRes] = await Promise.all([
+      apiClient<ApiResponse<MembershipDto[]>>('/api/users/me/memberships'),
+      apiClient<ApiResponse<UserDto>>('/api/users/me'),
+    ])
+    memberships = membershipsRes.data
+    isSuperadmin = userRes.data.platformRole === 'SUPERADMIN'
   } catch {
     // If API fails, show empty state
-  }
-
-  // If only one active membership, redirect directly
-  const activeMemberships = memberships.filter(m => m.status === 'ACTIVE')
-  if (activeMemberships.length === 1) {
-    const m = activeMemberships[0]
-    const path = ['ADMIN', 'ADMIN_COACH'].includes(m.role)
-      ? `/gym/${m.gymId}/admin/members`
-      : `/gym/${m.gymId}/coach/templates`
-    redirect(path)
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="w-full max-w-2xl p-6">
         <h1 className="mb-6 text-2xl font-bold text-center">Seleccioná tu gym</h1>
-        {memberships.length === 0 ? (
-          <div className="text-center text-muted-foreground">
-            <p>No tenés membresías activas.</p>
-            <p className="mt-2 text-sm">Pedile al administrador de tu gym que te envíe el link de invitación.</p>
-            <LogoutButton />
+
+        {isSuperadmin && (
+          <div className="mb-6 text-center">
+            <Link
+              href="/platform"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              Panel Superadmin
+            </Link>
           </div>
-        ) : (
-          <GymSelector memberships={memberships} />
         )}
+
+        {memberships.length > 0 && (
+          <div className="mb-8">
+            <h2 className="mb-3 text-lg font-semibold">Mis gyms</h2>
+            <GymSelector memberships={memberships} />
+          </div>
+        )}
+
+        <div className="border-t pt-6">
+          <h2 className="mb-3 text-lg font-semibold">Buscar gimnasio</h2>
+          <GymSearch />
+        </div>
+
+        <div className="mt-8 text-center">
+          <LogoutButton />
+        </div>
       </div>
     </div>
   )

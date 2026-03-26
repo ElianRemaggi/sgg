@@ -69,6 +69,31 @@ class JoinRequestControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    void joinRequest_autoAcceptEnabled_returnsActive() throws Exception {
+        gym.setAutoAcceptMembers(true);
+        gymRepository.save(gym);
+
+        mockMvc.perform(post("/api/gyms/{gymId}/join-request", gym.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("member-uid-001"))))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.status").value("ACTIVE"))
+            .andExpect(jsonPath("$.data.gymName").value("CrossFit Norte"));
+    }
+
+    @Test
+    void joinRequest_autoAcceptDisabled_returnsPending() throws Exception {
+        gym.setAutoAcceptMembers(false);
+        gymRepository.save(gym);
+
+        mockMvc.perform(post("/api/gyms/{gymId}/join-request", gym.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("member-uid-001"))))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.status").value("PENDING"));
+    }
+
+    @Test
     void joinRequest_duplicatePending_returns409() throws Exception {
         GymMember existing = new GymMember();
         existing.setGymId(gym.getId());

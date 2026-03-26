@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 public class GymSearchController {
@@ -18,6 +20,12 @@ public class GymSearchController {
     public ResponseEntity<ApiResponse<GymPublicDto>> searchBySlug(@RequestParam String slug) {
         GymPublicDto gym = gymService.searchBySlug(slug);
         return ResponseEntity.ok(ApiResponse.ok(gym));
+    }
+
+    @GetMapping("/api/gyms/search/by-name")
+    public ResponseEntity<ApiResponse<List<GymPublicDto>>> searchByName(@RequestParam String q) {
+        List<GymPublicDto> gyms = gymService.searchByName(q);
+        return ResponseEntity.ok(ApiResponse.ok(gyms));
     }
 
     @GetMapping("/api/gyms/{gymId}/info")

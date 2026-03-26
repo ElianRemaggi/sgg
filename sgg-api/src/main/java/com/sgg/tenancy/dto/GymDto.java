@@ -6,5 +6,6 @@ public record GymDto(
     String slug,
     String description,
     String logoUrl,
-    String routineCycle
+    String routineCycle,
+    Boolean autoAcceptMembers
 ) {}

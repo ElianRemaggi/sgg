@@ -38,6 +38,9 @@ public class Gym {
     @Column(name = "owner_user_id", nullable = false)
     private Long ownerUserId;
 
+    @Column(name = "auto_accept_members", nullable = false)
+    private Boolean autoAcceptMembers = false;
+
     @Column(nullable = false, length = 20)
     private String status = "ACTIVE";
 

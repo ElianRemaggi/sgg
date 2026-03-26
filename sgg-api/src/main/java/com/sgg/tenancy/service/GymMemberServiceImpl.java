@@ -44,16 +44,18 @@ public class GymMemberServiceImpl implements GymMemberService {
             throw new BusinessException("Ya tenés una membresía pendiente o activa en este gym");
         }
 
+        String status = Boolean.TRUE.equals(gym.getAutoAcceptMembers()) ? "ACTIVE" : "PENDING";
+
         GymMember member = new GymMember();
         member.setGymId(gymId);
         member.setUserId(userId);
         member.setRole("MEMBER");
-        member.setStatus("PENDING");
+        member.setStatus(status);
         gymMemberRepository.save(member);
 
-        log.info("Join request created: userId={}, gymId={}, memberId={}", userId, gymId, member.getId());
+        log.info("Join request created: userId={}, gymId={}, memberId={}, status={}", userId, gymId, member.getId(), status);
 
-        return new JoinRequestResponse(member.getId(), "PENDING", gym.getName());
+        return new JoinRequestResponse(member.getId(), status, gym.getName());
     }
 
     @Override

@@ -24,6 +24,7 @@ export interface GymPublicDto {
 
 export interface GymDto extends GymPublicDto {
   routineCycle: string
+  autoAcceptMembers: boolean
 }
 
 export interface GymMemberDto {

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface GymRepository extends JpaRepository<Gym, Long> {
@@ -18,6 +19,8 @@ public interface GymRepository extends JpaRepository<Gym, Long> {
     boolean existsBySlug(String slug);
 
     boolean existsBySlugAndIdNot(String slug, Long id);
+
+    List<Gym> findTop10ByNameContainingIgnoreCaseAndStatusAndDeletedAtIsNullOrderByNameAsc(String name, String status);
 
     @Query("""
         SELECT g FROM Gym g

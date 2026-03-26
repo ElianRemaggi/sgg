@@ -9,6 +9,7 @@ import com.sgg.tenancy.repository.GymRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -77,5 +78,76 @@ class GymSearchControllerTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/gyms/search").param("slug", "gym-suspendido"))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.success").value(false));
+    }
+
+    // ─── Search by name ───
+
+    @Test
+    void searchByName_partialMatch_returnsResults() throws Exception {
+        createActiveGym("CrossFit Norte", "crossfit-norte");
+        createActiveGym("CrossFit Sur", "crossfit-sur");
+        createActiveGym("Gym Power", "gym-power");
+
+        mockMvc.perform(get("/api/gyms/search/by-name").param("q", "cross")
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("owner-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.length()").value(2))
+            .andExpect(jsonPath("$.data[0].name").value("CrossFit Norte"))
+            .andExpect(jsonPath("$.data[1].name").value("CrossFit Sur"));
+    }
+
+    @Test
+    void searchByName_noResults_returnsEmptyList() throws Exception {
+        createActiveGym("CrossFit Norte", "crossfit-norte");
+
+        mockMvc.perform(get("/api/gyms/search/by-name").param("q", "yoga")
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("owner-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    void searchByName_onlyReturnsActiveGyms() throws Exception {
+        createActiveGym("CrossFit Norte", "crossfit-norte");
+
+        Gym suspended = new Gym();
+        suspended.setName("CrossFit Suspendido");
+        suspended.setSlug("crossfit-suspendido");
+        suspended.setOwnerUserId(owner.getId());
+        suspended.setStatus("SUSPENDED");
+        gymRepository.save(suspended);
+
+        mockMvc.perform(get("/api/gyms/search/by-name").param("q", "CrossFit")
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("owner-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].name").value("CrossFit Norte"));
+    }
+
+    @Test
+    void searchByName_shortQuery_returnsEmptyList() throws Exception {
+        createActiveGym("CrossFit Norte", "crossfit-norte");
+
+        mockMvc.perform(get("/api/gyms/search/by-name").param("q", "a")
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("owner-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    void searchByName_withoutJwt_returns401() throws Exception {
+        mockMvc.perform(get("/api/gyms/search/by-name").param("q", "cross"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    private Gym createActiveGym(String name, String slug) {
+        Gym gym = new Gym();
+        gym.setName(name);
+        gym.setSlug(slug);
+        gym.setOwnerUserId(owner.getId());
+        gym.setStatus("ACTIVE");
+        return gymRepository.save(gym);
     }
 }
