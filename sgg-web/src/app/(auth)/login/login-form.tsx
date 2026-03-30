@@ -4,8 +4,6 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import type { Session } from '@supabase/supabase-js'
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export function LoginForm() {
@@ -16,25 +14,6 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false)
 
   const supabase = createClient()
-
-  async function syncUser(session: Session) {
-    const user = session.user
-    await fetch(`${API_URL}/api/auth/sync`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        supabaseUid: user.id,
-        email: user.email,
-        fullName: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario',
-        avatarUrl: user.user_metadata?.avatar_url || null,
-        provider: user.app_metadata?.provider || 'email',
-        providerUid: user.user_metadata?.provider_id || user.id,
-      }),
-    })
-  }
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault()

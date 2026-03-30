@@ -171,3 +171,37 @@ export interface MemberRoutineDto {
   endsAt: string | null
   blocks: TemplateBlockDto[]
 }
+
+// ─── Tracking DTOs ───
+
+export interface ExerciseCompletionDto {
+  exerciseId: number
+  isCompleted: boolean
+  weightKg: number | null
+  actualReps: number | null
+  notes: string | null
+  completedAt: string
+}
+
+export interface TrackingProgressDto {
+  assignmentId: number
+  totalExercises: number
+  completedToday: number
+  completedTotal: number
+  progressPercent: number
+  lastActivityAt: string | null
+  completions: ExerciseCompletionDto[]
+}
+
+// ─── Schedule DTOs ───
+
+export interface ScheduleActivityDto {
+  id: number
+  name: string
+  description: string | null
+  dayOfWeek: number
+  dayName: string
+  startTime: string
+  endTime: string
+  isActive: boolean
+}

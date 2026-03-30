@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Users, Settings, CalendarDays, Dumbbell, ClipboardList, LogOut } from 'lucide-react'
+import { Users, Settings, CalendarDays, Dumbbell, ClipboardList, LogOut, UserCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -20,6 +20,7 @@ export function Sidebar({ gymId, gymName, role }: SidebarProps) {
 
   const isAdmin = role === 'ADMIN' || role === 'ADMIN_COACH'
   const isCoach = role === 'COACH' || role === 'ADMIN_COACH'
+  const isMember = role === 'MEMBER'
 
   const adminLinks = [
     { href: `/gym/${gymId}/admin/members`, label: 'Miembros', icon: Users },
@@ -30,6 +31,12 @@ export function Sidebar({ gymId, gymName, role }: SidebarProps) {
   const coachLinks = [
     { href: `/gym/${gymId}/coach/templates`, label: 'Plantillas', icon: Dumbbell },
     { href: `/gym/${gymId}/coach/assign`, label: 'Asignar Rutina', icon: ClipboardList },
+  ]
+
+  const memberLinks = [
+    { href: `/gym/${gymId}/member/routine`, label: 'Mi Rutina', icon: Dumbbell },
+    { href: `/gym/${gymId}/member/schedule`, label: 'Horarios', icon: CalendarDays },
+    { href: `/gym/${gymId}/member/profile`, label: 'Perfil', icon: UserCircle },
   ]
 
   async function handleLogout() {
@@ -72,6 +79,25 @@ export function Sidebar({ gymId, gymName, role }: SidebarProps) {
           <div className="mt-4 space-y-1">
             <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Coach</p>
             {coachLinks.map(link => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent",
+                  pathname === link.href && "bg-accent text-accent-foreground font-medium"
+                )}
+              >
+                <link.icon className="h-4 w-4" />
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {isMember && (
+          <div className="mt-4 space-y-1">
+            <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Miembro</p>
+            {memberLinks.map(link => (
               <Link
                 key={link.href}
                 href={link.href}

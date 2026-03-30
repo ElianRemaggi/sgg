@@ -1,7 +1,6 @@
 'use client'
 
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
-import { Button } from '@/components/ui/button'
 import { MoreHorizontal } from 'lucide-react'
 import type { GymMemberDto } from '@/lib/api/types'
 import { approveMember, rejectMember, blockMember } from './actions'

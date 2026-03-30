@@ -6,8 +6,8 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 
 ## Estado General
 
-**Fase actual:** 4 — Training (completada)
-**Última actualización:** 2026-03-23
+**Fase actual:** 5 — Web completa: Tracking + Schedule + Profile + PWA (completada)
+**Última actualización:** 2026-03-30
 
 ---
 
@@ -85,36 +85,54 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 - [x] Frontend: /gym/[gymId]/coach/assign (formulario de asignación con selects de miembro/plantilla, fechas, preview)
 - [x] Frontend: Server Actions (createTemplate, updateTemplate, deleteTemplate, assignRoutine)
 
-### Fase 5 — App Móvil Core (semanas 8-10)
+### Fase 5 — Web completa: Tracking + Schedule + Profile + PWA (semanas 8-10)
+
+#### Sub-Fase 5.1 — Tracking Backend
+- [x] Flyway V12 (`exercise_completions` con peso, reps, notas, UNIQUE por assignment+exercise+user)
+- [x] Módulo `com.sgg.tracking`: ExerciseCompletion entity, repository, DTOs (Complete/UndoRequest, ExerciseCompletionDto, TrackingProgressDto), mapper MapStruct
+- [x] TrackingService: `completeExercise` (upsert), `undoExercise` (idempotente), `getProgress`, `getMemberProgress`
+- [x] TrackingController: POST /member/tracking/complete, POST /member/tracking/undo, GET /member/tracking/progress, GET /coach/tracking/{memberId}
+- [x] Tests: TrackingControllerTest (10 tests — requieren Docker Desktop)
+
+#### Sub-Fase 5.2 — Tracking Frontend
+- [x] Tipos TS: `ExerciseCompletionDto`, `TrackingProgressDto` en `lib/api/types.ts`
+- [x] Server actions: `completeExercise`, `undoExercise`
+- [x] `exercise-row.tsx`: toggle expandir, inputs peso/reps/notas, botón Completar, badges en completado, botón Deshacer
+- [x] `routine-tracking-view.tsx`: progress bar, stats (hoy/total/%), listado de bloques con ExerciseRow
+- [x] `page.tsx` actualizado: fetch rutina + progreso en paralelo con `Promise.allSettled`
+
+#### Sub-Fase 5.3 — Schedule Backend + Frontend
+- [x] Flyway V13 (`schedule_activities` con day_of_week, start_time, end_time, is_active)
+- [x] Módulo `com.sgg.schedule`: entity, repository, DTOs (ScheduleActivityDto, Create/UpdateRequest), mapper (días en español), service, controller
+- [x] Endpoints: GET /schedule (autenticado), POST/PUT/DELETE /admin/schedule
+- [x] Tests: ScheduleControllerTest (8 tests — requieren Docker Desktop)
+- [x] Frontend Admin: `schedule-admin-view.tsx` (grilla semanal), `schedule-form-dialog.tsx` (crear/editar), `actions.ts`
+- [x] Frontend Member: vista read-only agrupada por día
+
+#### Sub-Fase 5.4 — Profile Frontend
+- [x] `profile-view.tsx`: avatar, nombre editable (PUT /api/users/me), email read-only, info membresía, logout
+- [x] `page.tsx`: fetch usuario + membresías en paralelo, pasa membresía del gym actual
+
+#### Sub-Fase 5.5 — PWA + Sidebar
+- [x] `public/manifest.json`: name SGG, display standalone, start_url /select-gym, theme_color
+- [x] `public/sw.js`: service worker network-first con offline fallback para navegación
+- [x] `public/offline.html`: página sin internet con botón reintentar
+- [x] `public/icons/icon-192x192.png` + `icon-512x512.png`: íconos válidos
+- [x] `sw-register.tsx`: registro del SW (client component)
+- [x] `app/layout.tsx`: meta tags PWA, manifest link, ServiceWorkerRegister, lang="es"
+- [x] `next.config.mjs`: headers Cache-Control y Service-Worker-Allowed para sw.js
+- [x] Sidebar actualizado: member links = Mi Rutina + Horarios + Perfil
+
+### Fase 6 — App Móvil Core (pendiente)
 - [ ] Inicializar proyecto Expo (`sgg-app/`)
 - [ ] Configurar Supabase Auth + SecureStore
 - [ ] Pantalla de login (email + Google OAuth)
 - [ ] Hook useAuth + GymStore (Zustand)
 - [ ] Pantalla selección de gym
 - [ ] Flujo solicitud de membresía
-- [ ] Tab: Mi Rutina (vista de rutina activa)
-
-### Fase 6 — Tracking + Coaching (semanas 11-12)
-- [ ] Implementar módulo `tracking/`
-- [ ] Flyway V9+
-- [ ] Tests: TrackingControllerTest
-- [ ] App: toggle completar/deshacer ejercicios
-- [ ] App: vista de progreso
-- [ ] Implementar módulo `coaching/`
-- [ ] Flyway V10+
-- [ ] Tests: CoachAssignmentControllerTest
-- [ ] Panel coach: gestión de asignaciones
-- [ ] Panel coach: vista de progreso de members
-
-### Fase 7 — Schedule + Polish (semanas 13-14)
-- [ ] Implementar módulo `schedule/`
-- [ ] Flyway V11
-- [ ] Tests: ScheduleControllerTest
-- [ ] Panel admin: CRUD de horarios
-- [ ] App: tab Mi Gym (info + horarios)
-- [ ] App: tab Perfil (editar perfil + cambiar gym + logout)
-- [ ] Testing integral end-to-end
-- [ ] Deploy final en servidor
+- [ ] Tab: Mi Rutina con tracking (completar ejercicios con peso/reps)
+- [ ] Tab: Mi Gym (info + horarios)
+- [ ] Tab: Perfil (editar + logout)
 
 ---
 
@@ -128,11 +146,11 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 | tenancy | 24 | 24 | GymSearchControllerTest (3), JoinRequestControllerTest (5), AdminMembersControllerTest (14), MembershipControllerTest (2) |
 | coaching | 0 | 0 | - |
 | training | 20 | 20 | RoutineTemplateControllerTest (13), RoutineAssignmentControllerTest (7) |
-| tracking | 0 | 0 | - |
-| schedule | 0 | 0 | - |
+| tracking | 10 | 10* | TrackingControllerTest (10) |
+| schedule | 8 | 8* | ScheduleControllerTest (8) |
 | platform | 27 | 27 | PlatformGymControllerTest (19), PlatformAdminControllerTest (8) |
 
-**Total: 81 tests, 81 pasando**
+**Total: 99 tests, 81 pasando localmente** (\* tracking y schedule requieren Docker Desktop corriendo)
 
 ---
 
@@ -177,6 +195,20 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 - **Partial index sin NOW() (Fase 4).** PostgreSQL no permite `NOW()` en predicados de índices parciales porque no es IMMUTABLE. El índice `idx_routine_assignments_active` se cambió a filtrar solo `WHERE ends_at IS NULL` en vez de `ends_at IS NULL OR ends_at >= NOW()`.
 
 - **isMember() verifica rol MEMBER explícitamente (Fase 4).** `GymAccessChecker.isMember(gymId)` verifica que el usuario tenga rol "MEMBER" (no COACH ni ADMIN). Esto es intencional: los endpoints `/member/routine` son solo para miembros, no para coaches. Un COACH con membresía ACTIVE pero rol COACH no puede acceder a las rutas de member.
+
+### Decisiones Fase 5
+
+- **Web-first para members.** Se decidió implementar toda la experiencia del member en web (en vez de mobile-only) y convertir el web en PWA instalable. La app móvil queda para Fase 6 como segunda capa.
+
+- **Tracking con upsert.** `completeExercise` hace upsert (find-or-create) para que sea idempotente. Completar el mismo ejercicio dos veces actualiza los datos en lugar de crear un registro duplicado.
+
+- **`toast(message, type)` — NO `toast({ type, message })`.** El hook `useToast` del proyecto usa la firma `(message: string, type?: string)`, no un objeto. Error fácil de cometer al crear nuevos componentes.
+
+- **Schedule: soft-delete via `is_active = false`.** En lugar de `deleted_at`, las actividades usan `is_active BOOLEAN`. Se diferencia de otras tablas porque aquí "desactivar" es una operación normal del flujo de admin (no una eliminación excepcional).
+
+- **PWA icons generados con Node.js.** Se generaron PNGs válidos (24×24×27 solid color) programáticamente con Node.js ya que Python no estaba disponible en el entorno.
+
+- **ESLint errors pre-existentes corregidos (Fase 5).** Se corrigieron errores de lint en archivos de fases anteriores que impedían el build: `unused vars` en login-form.tsx, member-actions.tsx, assign-view.tsx; `no-empty-object-type` en input.tsx y select.tsx.
 
 ### Bug fixes post-Fase 4
 

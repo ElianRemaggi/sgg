@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { RoutineTemplateSummaryDto, GymMemberDto } from '@/lib/api/types'
 import { assignRoutine } from './actions'
 import { Button } from '@/components/ui/button'
@@ -17,14 +17,46 @@ interface AssignViewProps {
 
 export function AssignView({ templates, members, gymId }: AssignViewProps) {
   const [selectedMember, setSelectedMember] = useState<number | ''>('')
+  const [memberSearch, setMemberSearch] = useState('')
+  const [memberOpen, setMemberOpen] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<number | ''>('')
   const [startsAt, setStartsAt] = useState('')
   const [endsAt, setEndsAt] = useState('')
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const { toast } = useToast()
+  const memberRef = useRef<HTMLDivElement>(null)
 
+  const filteredMembers = memberSearch.trim()
+    ? members.filter(m =>
+        m.fullName.toLowerCase().includes(memberSearch.toLowerCase()) ||
+        m.email.toLowerCase().includes(memberSearch.toLowerCase())
+      )
+    : members
+
+  const selectedMemberData = members.find(m => m.userId === selectedMember)
   const selectedTemplateData = templates.find(t => t.id === selectedTemplate)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (memberRef.current && !memberRef.current.contains(e.target as Node)) {
+        setMemberOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  function handleSelectMember(userId: number) {
+    setSelectedMember(userId)
+    setMemberSearch('')
+    setMemberOpen(false)
+  }
+
+  function clearMember() {
+    setSelectedMember('')
+    setMemberSearch('')
+  }
 
   function validate(): boolean {
     const errs: Record<string, string> = {}
@@ -52,9 +84,10 @@ export function AssignView({ templates, members, gymId }: AssignViewProps) {
     setSaving(false)
 
     if (result.success) {
-      const memberName = members.find(m => m.userId === selectedMember)?.fullName ?? 'el miembro'
+      const memberName = selectedMemberData?.fullName ?? 'el miembro'
       toast(`Rutina asignada a ${memberName}`, 'success')
       setSelectedMember('')
+      setMemberSearch('')
       setSelectedTemplate('')
       setStartsAt('')
       setEndsAt('')
@@ -71,21 +104,47 @@ export function AssignView({ templates, members, gymId }: AssignViewProps) {
           <CardTitle>Formulario de asignación</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Member select */}
-          <div>
+          {/* Member search + dropdown */}
+          <div ref={memberRef} className="relative">
             <label className="mb-1 block text-sm font-medium">Miembro</label>
-            <select
-              value={selectedMember}
-              onChange={(e) => setSelectedMember(e.target.value ? Number(e.target.value) : '')}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="">Seleccionar miembro...</option>
-              {members.map(m => (
-                <option key={m.userId} value={m.userId}>
-                  {m.fullName} ({m.email})
-                </option>
-              ))}
-            </select>
+            {selectedMember && selectedMemberData ? (
+              <div className="flex items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <span>{selectedMemberData.fullName} <span className="text-muted-foreground">({selectedMemberData.email})</span></span>
+                <button
+                  type="button"
+                  onClick={clearMember}
+                  className="ml-2 text-muted-foreground hover:text-foreground"
+                >
+                  &times;
+                </button>
+              </div>
+            ) : (
+              <Input
+                type="text"
+                placeholder="Buscar por nombre o email..."
+                value={memberSearch}
+                onChange={(e) => { setMemberSearch(e.target.value); setMemberOpen(true) }}
+                onFocus={() => setMemberOpen(true)}
+              />
+            )}
+            {memberOpen && !selectedMember && (
+              <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border bg-popover shadow-md">
+                {filteredMembers.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>
+                ) : (
+                  filteredMembers.map(m => (
+                    <button
+                      key={m.userId}
+                      type="button"
+                      onClick={() => handleSelectMember(m.userId)}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors"
+                    >
+                      {m.fullName} <span className="text-muted-foreground">({m.email})</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
             {errors['member'] && <p className="mt-1 text-sm text-destructive">{errors['member']}</p>}
           </div>
 
