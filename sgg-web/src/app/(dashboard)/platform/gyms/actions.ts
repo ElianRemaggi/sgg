@@ -61,6 +61,17 @@ export async function createGymAction(data: {
   }
 }
 
+export async function searchUsersAction(search: string) {
+  try {
+    const res = await apiClient<{ data: { id: number; fullName: string; email: string }[] }>(
+      `/api/platform/users?search=${encodeURIComponent(search)}`
+    )
+    return { success: true, users: res.data }
+  } catch {
+    return { success: false, users: [] }
+  }
+}
+
 export async function updateGymAction(gymId: number, data: {
   name: string
   slug: string

@@ -22,9 +22,14 @@ export function GymSelector({ memberships }: GymSelectorProps) {
   function handleSelect(membership: MembershipDto) {
     if (membership.status !== 'ACTIVE') return
 
-    const path = ['ADMIN', 'ADMIN_COACH'].includes(membership.role)
-      ? `/gym/${membership.gymId}/admin/members`
-      : `/gym/${membership.gymId}/coach/templates`
+    let path: string
+    if (['ADMIN', 'ADMIN_COACH'].includes(membership.role)) {
+      path = `/gym/${membership.gymId}/admin/members`
+    } else if (membership.role === 'COACH') {
+      path = `/gym/${membership.gymId}/coach/templates`
+    } else {
+      path = `/gym/${membership.gymId}/member/routine`
+    }
 
     router.push(path)
   }

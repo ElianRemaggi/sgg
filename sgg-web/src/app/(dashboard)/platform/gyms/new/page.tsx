@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/toast'
-import { UserSearchDto, ApiResponse } from '@/lib/api/types'
-import { createGymAction } from '../actions'
+import { UserSearchDto } from '@/lib/api/types'
+import { createGymAction, searchUsersAction } from '../actions'
 
 function nameToSlug(name: string): string {
   return name
@@ -48,17 +48,9 @@ export default function CreateGymPage() {
       setOwnerResults([])
       return
     }
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/platform/users?search=${encodeURIComponent(search)}`,
-        { credentials: 'include' }
-      )
-      if (res.ok) {
-        const data: ApiResponse<UserSearchDto[]> = await res.json()
-        setOwnerResults(data.data)
-      }
-    } catch {
-      // ignore
+    const result = await searchUsersAction(search)
+    if (result.success) {
+      setOwnerResults(result.users)
     }
   }, [])
 
