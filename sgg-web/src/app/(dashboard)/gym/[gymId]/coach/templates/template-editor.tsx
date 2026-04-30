@@ -250,8 +250,8 @@ export function TemplateEditor({ gymId, template }: TemplateEditorProps) {
                   {errors[`block-${bi}-ex-${ei}-name`] && (
                     <p className="text-sm text-destructive">{errors[`block-${bi}-ex-${ei}-name`]}</p>
                   )}
-                  <div className="flex gap-2">
-                    <div className="w-20">
+                  <div className="grid grid-cols-3 gap-2 sm:flex sm:gap-2">
+                    <div className="sm:w-20">
                       <label className="text-xs text-muted-foreground">Series</label>
                       <Input
                         type="number"
@@ -261,7 +261,7 @@ export function TemplateEditor({ gymId, template }: TemplateEditorProps) {
                         onChange={(e) => updateExercise(bi, ei, 'sets', e.target.value)}
                       />
                     </div>
-                    <div className="w-24">
+                    <div className="sm:w-24">
                       <label className="text-xs text-muted-foreground">Reps</label>
                       <Input
                         placeholder="8-10"
@@ -269,7 +269,7 @@ export function TemplateEditor({ gymId, template }: TemplateEditorProps) {
                         onChange={(e) => updateExercise(bi, ei, 'reps', e.target.value)}
                       />
                     </div>
-                    <div className="w-24">
+                    <div className="sm:w-24">
                       <label className="text-xs text-muted-foreground">Descanso (s)</label>
                       <Input
                         type="number"

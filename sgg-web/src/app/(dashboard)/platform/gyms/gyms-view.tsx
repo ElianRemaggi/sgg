@@ -93,13 +93,13 @@ export function GymsView({ data, currentStatus, currentSearch }: Props) {
 
   return (
     <>
-      <div className="mb-4 flex items-center gap-4">
-        <form onSubmit={handleSearch} className="flex items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2 md:gap-4">
+        <form onSubmit={handleSearch} className="flex w-full items-center gap-2 sm:w-auto">
           <Input
             placeholder="Buscar por nombre o slug..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-64"
+            className="w-full sm:w-64"
           />
           <Button type="submit" variant="outline" size="sm">
             <Search className="h-4 w-4" />
@@ -109,7 +109,7 @@ export function GymsView({ data, currentStatus, currentSearch }: Props) {
         <select
           value={currentStatus}
           onChange={(e) => updateFilters('status', e.target.value)}
-          className="rounded-md border bg-background px-3 py-2 text-sm"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm sm:w-auto"
         >
           <option value="">Todos los estados</option>
           <option value="ACTIVE">Activos</option>
@@ -117,7 +117,7 @@ export function GymsView({ data, currentStatus, currentSearch }: Props) {
           <option value="DELETED">Eliminados</option>
         </select>
 
-        <div className="ml-auto">
+        <div className="sm:ml-auto">
           <Link href="/platform/gyms/new">
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -131,11 +131,11 @@ export function GymsView({ data, currentStatus, currentSearch }: Props) {
         <TableHeader>
           <TableRow>
             <TableHead>Nombre</TableHead>
-            <TableHead>Slug</TableHead>
-            <TableHead>Owner</TableHead>
-            <TableHead>Miembros</TableHead>
+            <TableHead className="hidden sm:table-cell">Slug</TableHead>
+            <TableHead className="hidden md:table-cell">Owner</TableHead>
+            <TableHead className="hidden sm:table-cell">Miembros</TableHead>
             <TableHead>Estado</TableHead>
-            <TableHead>Creado</TableHead>
+            <TableHead className="hidden lg:table-cell">Creado</TableHead>
             <TableHead className="w-10"></TableHead>
           </TableRow>
         </TableHeader>
@@ -147,16 +147,16 @@ export function GymsView({ data, currentStatus, currentSearch }: Props) {
                   {gym.name}
                 </Link>
               </TableCell>
-              <TableCell className="text-muted-foreground">{gym.slug}</TableCell>
-              <TableCell>
+              <TableCell className="hidden sm:table-cell text-muted-foreground">{gym.slug}</TableCell>
+              <TableCell className="hidden md:table-cell">
                 <div className="text-sm">{gym.ownerName}</div>
                 <div className="text-xs text-muted-foreground">{gym.ownerEmail}</div>
               </TableCell>
-              <TableCell>{gym.membersCount}</TableCell>
+              <TableCell className="hidden sm:table-cell">{gym.membersCount}</TableCell>
               <TableCell>
                 <Badge className={statusColors[gym.status] || ''}>{gym.status}</Badge>
               </TableCell>
-              <TableCell className="text-muted-foreground text-sm">
+              <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
                 {new Date(gym.createdAt).toLocaleDateString('es-AR')}
               </TableCell>
               <TableCell>

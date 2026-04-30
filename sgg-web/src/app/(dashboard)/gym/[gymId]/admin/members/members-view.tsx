@@ -106,7 +106,7 @@ export function MembersView({ initialData, gymId, currentStatus, currentRole, cu
         <Select
           value={currentStatus}
           onChange={e => updateFilter('status', e.target.value)}
-          className="w-40"
+          className="w-full sm:w-40"
         >
           <option value="ALL">Todos los estados</option>
           <option value="PENDING">Pendientes</option>
@@ -118,7 +118,7 @@ export function MembersView({ initialData, gymId, currentStatus, currentRole, cu
         <Select
           value={currentRole}
           onChange={e => updateFilter('role', e.target.value)}
-          className="w-40"
+          className="w-full sm:w-40"
         >
           <option value="ALL">Todos los roles</option>
           <option value="MEMBER">Miembro</option>
@@ -131,7 +131,7 @@ export function MembersView({ initialData, gymId, currentStatus, currentRole, cu
           placeholder="Buscar por nombre o email..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-64"
+          className="w-full sm:w-64"
         />
       </div>
 
@@ -144,10 +144,10 @@ export function MembersView({ initialData, gymId, currentStatus, currentRole, cu
           <TableHeader>
             <TableRow>
               <TableHead>Miembro</TableHead>
-              <TableHead>Rol</TableHead>
+              <TableHead className="hidden sm:table-cell">Rol</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead>Vencimiento</TableHead>
-              <TableHead>Ingreso</TableHead>
+              <TableHead className="hidden md:table-cell">Vencimiento</TableHead>
+              <TableHead className="hidden lg:table-cell">Ingreso</TableHead>
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
@@ -156,20 +156,20 @@ export function MembersView({ initialData, gymId, currentStatus, currentRole, cu
               <TableRow key={member.memberId}>
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
                       {member.avatarUrl ? (
                         <img src={member.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
                       ) : (
                         member.fullName.charAt(0).toUpperCase()
                       )}
                     </div>
-                    <div>
-                      <div className="font-medium">{member.fullName}</div>
-                      <div className="text-xs text-muted-foreground">{member.email}</div>
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{member.fullName}</div>
+                      <div className="truncate text-xs text-muted-foreground">{member.email}</div>
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <Badge className={ROLE_COLORS[member.role] ?? ''} variant="secondary">
                     {member.role}
                   </Badge>
@@ -179,12 +179,12 @@ export function MembersView({ initialData, gymId, currentStatus, currentRole, cu
                     {member.status}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden md:table-cell">
                   <span className={isExpiringSoon(member.membershipExpiresAt) ? 'text-red-600 font-medium' : ''}>
                     {formatDate(member.membershipExpiresAt)}
                   </span>
                 </TableCell>
-                <TableCell>{formatDate(member.joinedAt)}</TableCell>
+                <TableCell className="hidden lg:table-cell">{formatDate(member.joinedAt)}</TableCell>
                 <TableCell>
                   <MemberActions
                     member={member}

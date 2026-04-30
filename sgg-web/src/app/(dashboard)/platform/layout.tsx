@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { apiClient } from '@/lib/api/client'
 import { ApiResponse, UserDto } from '@/lib/api/types'
 import { PlatformSidebar } from '@/components/platform-sidebar'
+import { SidebarShell } from '@/components/sidebar-shell'
 
 export default async function PlatformLayout({
   children,
@@ -21,11 +22,11 @@ export default async function PlatformLayout({
   }
 
   return (
-    <div className="flex h-screen">
-      <PlatformSidebar />
-      <main className="flex-1 overflow-auto p-8">
-        {children}
-      </main>
-    </div>
+    <SidebarShell
+      sidebar={<PlatformSidebar />}
+      mainClassName="p-4 md:p-8"
+    >
+      {children}
+    </SidebarShell>
   )
 }

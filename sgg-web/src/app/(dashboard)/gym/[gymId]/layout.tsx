@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/api/client'
 import type { ApiResponse, GymDto, MembershipDto } from '@/lib/api/types'
 import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/sidebar'
+import { SidebarShell } from '@/components/sidebar-shell'
 
 export default async function GymLayout({
   children,
@@ -31,11 +32,10 @@ export default async function GymLayout({
   }
 
   return (
-    <div className="flex h-screen">
-      <Sidebar gymId={params.gymId} gymName={gym?.name ?? 'Gym'} role={userRole} />
-      <main className="flex-1 overflow-y-auto p-6">
-        {children}
-      </main>
-    </div>
+    <SidebarShell
+      sidebar={<Sidebar gymId={params.gymId} gymName={gym?.name ?? 'Gym'} role={userRole} />}
+    >
+      {children}
+    </SidebarShell>
   )
 }
