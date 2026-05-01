@@ -17,7 +17,7 @@ export function RoutineTrackingView({ gymId, routine, progress }: RoutineTrackin
     (progress?.completions ?? []).map(c => [c.exerciseId, c])
   )
 
-  const defaultDay = progress?.currentDayNumber ?? routine.blocks[0]?.dayNumber ?? 1
+  const defaultDay = routine.blocks[0]?.dayNumber ?? 1
   const [selectedDay, setSelectedDay] = useState<number>(defaultDay)
 
   const activeBlock = routine.blocks.find(b => b.dayNumber === selectedDay) ?? routine.blocks[0]
@@ -38,19 +38,23 @@ export function RoutineTrackingView({ gymId, routine, progress }: RoutineTrackin
         <div className="rounded-lg border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between text-sm">
             <div>
-              <span className="font-medium">Día {progress.currentDayNumber} — {progress.currentBlockName}</span>
-              <span className="ml-2 text-xs text-muted-foreground">hoy</span>
+              {progress.currentDayNumber != null && progress.currentBlockName != null && (
+                <>
+                  <span className="font-medium">Día {progress.currentDayNumber} — {progress.currentBlockName}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">hoy</span>
+                </>
+              )}
             </div>
             <span className="text-muted-foreground">
-              {progress.completedToday} / {progress.totalExercisesToday} ejercicios
+              {progress.completedToday} / {progress.totalExercisesToday ?? progress.totalExercises} ejercicios
             </span>
           </div>
           <div className="h-2 rounded-full bg-muted overflow-hidden">
             <div
               className="h-full rounded-full bg-green-500 transition-all duration-500"
               style={{
-                width: progress.totalExercisesToday > 0
-                  ? `${Math.round(progress.completedToday / progress.totalExercisesToday * 100)}%`
+                width: (progress.totalExercisesToday ?? progress.totalExercises) > 0
+                  ? `${Math.round(progress.completedToday / (progress.totalExercisesToday ?? progress.totalExercises) * 100)}%`
                   : '0%'
               }}
             />

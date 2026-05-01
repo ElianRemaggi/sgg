@@ -191,6 +191,9 @@ export interface TrackingProgressDto {
   progressPercent: number
   lastActivityAt: string | null
   completions: ExerciseCompletionDto[]
+  currentDayNumber?: number
+  currentBlockName?: string
+  totalExercisesToday?: number
 }
 
 // ─── Schedule DTOs ───
