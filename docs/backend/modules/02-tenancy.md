@@ -10,23 +10,26 @@
 
 ```sql
 CREATE TABLE gyms (
-    id              BIGSERIAL PRIMARY KEY,
-    name            VARCHAR(200) NOT NULL,
-    slug            VARCHAR(100) NOT NULL UNIQUE,
-    description     TEXT,
-    logo_url        VARCHAR(500),
-    routine_cycle   VARCHAR(20) NOT NULL DEFAULT 'WEEKLY',  -- 'WEEKLY' | 'MONTHLY'
-    owner_user_id   BIGINT NOT NULL REFERENCES users(id),
-    status          VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',  -- 'ACTIVE' | 'SUSPENDED' | 'DELETED'
-    deleted_at      TIMESTAMP,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    id                    BIGSERIAL PRIMARY KEY,
+    name                  VARCHAR(200) NOT NULL,
+    slug                  VARCHAR(100) NOT NULL UNIQUE,
+    description           TEXT,
+    logo_url              VARCHAR(500),
+    routine_cycle         VARCHAR(20) NOT NULL DEFAULT 'WEEKLY',  -- 'WEEKLY' | 'MONTHLY'
+    owner_user_id         BIGINT NOT NULL REFERENCES users(id),
+    auto_accept_members   BOOLEAN NOT NULL DEFAULT false,   -- V11
+    status                VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',  -- 'ACTIVE' | 'SUSPENDED' | 'DELETED'
+    deleted_at            TIMESTAMP,
+    created_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE UNIQUE INDEX idx_gyms_slug ON gyms(slug);
 CREATE INDEX idx_gyms_owner ON gyms(owner_user_id);
 CREATE INDEX idx_gyms_status ON gyms(status);
 ```
+
+**auto_accept_members:** si es `true`, las solicitudes de membresía se aprueban automáticamente al crearse (no quedan en PENDING).
 
 ### GymMember
 
@@ -55,7 +58,7 @@ CREATE UNIQUE INDEX idx_unique_pending_membership
 
 ### GET /api/gyms/search?slug={slug}
 **Auth:** Público
-**Descripción:** Buscar un gym por slug para que un member lo encuentre antes de solicitar membresía.
+**Descripción:** Buscar un gym por slug exacto para que un member lo encuentre antes de solicitar membresía.
 
 **Response 200:**
 ```json
@@ -74,9 +77,30 @@ CREATE UNIQUE INDEX idx_unique_pending_membership
 
 ---
 
+### GET /api/gyms/search/by-name?q={query}
+**Auth:** Público
+**Descripción:** Buscar gyms por nombre (búsqueda parcial, case-insensitive). Útil para mostrar resultados mientras el usuario escribe.
+
+**Response 200:** Lista de `GymPublicDto` con los gyms activos que coinciden.
+
+---
+
 ### GET /api/gyms/{gymId}/info
 **Auth:** Bearer JWT (cualquier rol en el gym)
 **Descripción:** Info pública del gym para mostrar en la app.
+
+---
+
+### PATCH /api/gyms/{gymId}/settings/auto-accept
+**Auth:** ADMIN | ADMIN_COACH | SUPERADMIN
+**Descripción:** Activa o desactiva la aprobación automática de solicitudes de membresía.
+
+**Request body:**
+```json
+{ "autoAccept": true }
+```
+
+**Response 200:** `ApiResponse<Void>`
 
 ---
 

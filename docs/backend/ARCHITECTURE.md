@@ -23,9 +23,12 @@ com.sgg
 ├── common/
 │   ├── config/
 │   │   ├── SecurityConfig.java
+│   │   ├── NativeJwtConfig.java         # carga APP_JWT_SECRET, expone clave HS384
+│   │   ├── PasswordEncoderConfig.java   # BCrypt para auth nativa
 │   │   ├── CorsConfig.java
 │   │   └── WebMvcConfig.java            # registra TenantInterceptor
 │   ├── security/
+│   │   ├── DualJwtDecoder.java          # intenta HS384 nativo, fallback a Supabase JWKS
 │   │   ├── CustomJwtAuthenticationConverter.java
 │   │   ├── GymAccessChecker.java        # usado en @PreAuthorize
 │   │   └── SecurityUtils.java           # helper: getCurrentUserId()
@@ -44,7 +47,6 @@ com.sgg
 │
 ├── identity/        # ver docs/backend/modules/01-identity.md
 ├── tenancy/         # ver docs/backend/modules/02-tenancy.md
-├── coaching/        # ver docs/backend/modules/03-coaching.md
 ├── training/        # ver docs/backend/modules/04-training.md
 ├── tracking/        # ver docs/backend/modules/05-tracking.md
 ├── schedule/        # ver docs/backend/modules/06-schedule.md
@@ -103,7 +105,7 @@ session.enableFilter("tenantFilter").setParameter("gymId", gymId);
 ```java
 .authorizeHttpRequests(auth -> auth
     .requestMatchers("/api/public/**").permitAll()
-    .requestMatchers(HttpMethod.GET, "/api/gyms/search").permitAll()
+    .requestMatchers(HttpMethod.GET, "/api/gyms/search", "/api/gyms/search/by-name").permitAll()
     .requestMatchers("/api/platform/**").hasRole("SUPERADMIN")
     .anyRequest().authenticated()
 )
@@ -123,14 +125,35 @@ Bean usado en `@PreAuthorize` para validaciones más finas:
 @PreAuthorize("@gymAccessChecker.isSelfOrAdmin(#gymId, #userId)")
 ```
 
+### DualJwtDecoder
+
+El sistema soporta dos tipos de JWT:
+- **JWT Supabase**: firmado con RS256, validado contra JWKS URI (`SUPABASE_JWKS_URI`)
+- **JWT nativo**: firmado con HS384 usando `APP_JWT_SECRET` (emitido por `NativeAuthService`)
+
+`DualJwtDecoder` intenta decodificar con el decoder nativo (HS384) primero. Si falla, prueba con el decoder de Supabase (JWKS). El primero en tener éxito gana.
+
+```java
+@Override
+public Jwt decode(String token) throws JwtException {
+    try {
+        return nativeDecoder.decode(token);  // HS384
+    } catch (JwtException e) {
+        // no es nativo, intentar con Supabase
+    }
+    return supabaseDecoder.decode(token);  // RS256 via JWKS
+}
+```
+
 ### CustomJwtAuthenticationConverter
 
 Flujo:
-1. Recibe el JWT validado de Supabase
-2. Extrae `sub` (supabase_uid)
-3. Busca el user en BD por `supabase_uid`
-4. Si `platform_role = SUPERADMIN` → agrega `ROLE_SUPERADMIN`
-5. Los roles por gym se resuelven en `TenantInterceptor` (dependen del path)
+1. Recibe el JWT ya validado por `DualJwtDecoder`
+2. Extrae `sub`:
+   - JWT Supabase: `sub` = supabase_uid → busca user por `supabase_uid`
+   - JWT nativo: `sub` = user id (Long como string) → busca user por `id`
+3. Si `platform_role = SUPERADMIN` → agrega `ROLE_SUPERADMIN`
+4. Los roles por gym se resuelven en `TenantInterceptor` (dependen del path)
 
 ---
 
@@ -281,15 +304,21 @@ public class GlobalExceptionHandler {
 
 ## Tests de Integración — Estructura Base
 
+Todos los test classes extienden `BaseIntegrationTest` (en `com.sgg.common`), que maneja el contenedor de PostgreSQL y la configuración de Testcontainers. No replicar esta configuración en cada test.
+
 ```java
+// com.sgg.common.BaseIntegrationTest
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-@Testcontainers
-@Transactional
-class RoutineTemplateControllerTest {
+@ActiveProfiles("test")
+public abstract class BaseIntegrationTest {
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    static final PostgreSQLContainer<?> postgres;
+
+    static {
+        postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+        postgres.start();
+    }
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
@@ -298,7 +327,12 @@ class RoutineTemplateControllerTest {
         registry.add("spring.datasource.password", postgres::getPassword);
     }
 
-    @Autowired MockMvc mockMvc;
+    @Autowired protected MockMvc mockMvc;
+    @Autowired protected ObjectMapper objectMapper;
+}
+
+// Cada test class extiende la base:
+class RoutineTemplateControllerTest extends BaseIntegrationTest {
 
     // Cada test verifica:
     // 1. Happy path
@@ -320,5 +354,5 @@ class RoutineTemplateControllerTest {
 | 3 — Superadmin | 5 | platform, panel /platform |
 | 4 — Training | 6-7 | training, panel coach |
 | 5 — App Móvil Core | 8-10 | sgg-app: auth, gym selection, rutina |
-| 6 — Tracking + Coaching | 11-12 | tracking, coaching, progreso |
+| 6 — Tracking + Schedule | 11-12 | tracking, schedule, progreso |
 | 7 — Schedule + Polish | 13-14 | schedule, horarios, testing final |

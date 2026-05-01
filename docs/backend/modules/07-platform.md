@@ -14,24 +14,11 @@ No crea tablas propias. No tiene Hibernate Filter (no está scoped a un tenant).
 
 ---
 
-## Cambios de Esquema Requeridos
+## Esquema
 
-Estos campos se agregan via migración a tablas existentes:
+Este módulo no crea tablas propias. Opera sobre las tablas de `identity` y `tenancy`.
 
-```sql
--- V13: platform_role en users
-ALTER TABLE users
-  ADD COLUMN platform_role VARCHAR(20) NOT NULL DEFAULT 'USER';
-
-CREATE INDEX idx_users_platform_role ON users(platform_role);
-
--- V14: status y soft delete en gyms
-ALTER TABLE gyms
-  ADD COLUMN status     VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
-  ADD COLUMN deleted_at TIMESTAMP;
-
-CREATE INDEX idx_gyms_status ON gyms(status);
-```
+Los campos que necesita (`platform_role` en users, `status` y `deleted_at` en gyms) forman parte del esquema original desde V1 y V3 respectivamente — no requieren migraciones adicionales.
 
 ---
 
@@ -155,6 +142,24 @@ Todos requieren `ROLE_SUPERADMIN`. **No pasan por el TenantInterceptor.**
 **Validación:**
 - Si el gym tiene miembros con `status = ACTIVE`: retornar 409 con conteo
 - Query param `?force=true` permite eliminar igualmente (para casos de soporte)
+
+---
+
+## Endpoints — Búsqueda de Usuarios
+
+### GET /api/platform/users?search={query}
+**Auth:** SUPERADMIN
+**Descripción:** Buscar usuarios por nombre o email. Usado principalmente al seleccionar el owner al crear un gym.
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": [
+    { "id": 5, "fullName": "Juan Pérez", "email": "juan@email.com" }
+  ]
+}
+```
 
 ---
 

@@ -1,6 +1,6 @@
 # Módulo: Identity
 **Package:** `com.sgg.identity`
-**Responsabilidad:** Gestión de usuarios del sistema. Sincronización con Supabase Auth. Perfil de usuario.
+**Responsabilidad:** Gestión de usuarios del sistema. Sincronización con Supabase Auth. Auth nativa email/contraseña. Perfil de usuario.
 
 ---
 
@@ -14,18 +14,22 @@ CREATE TABLE users (
     full_name       VARCHAR(200) NOT NULL,
     email           VARCHAR(255) NOT NULL UNIQUE,
     avatar_url      VARCHAR(500),
-    supabase_uid    VARCHAR(100) NOT NULL UNIQUE,
+    supabase_uid    VARCHAR(100),            -- nullable desde V10 (auth nativa no tiene Supabase UID)
+    password_hash   VARCHAR(255),            -- nullable; solo usuarios nativos (BCrypt)
     platform_role   VARCHAR(20)  NOT NULL DEFAULT 'USER',
     created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX idx_users_supabase_uid ON users(supabase_uid);
+-- Índice parcial: solo aplica cuando supabase_uid no es null (V10)
+CREATE UNIQUE INDEX idx_users_supabase_uid ON users(supabase_uid) WHERE supabase_uid IS NOT NULL;
 CREATE UNIQUE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_platform_role ON users(platform_role);
 ```
 
 **platform_role valores:** `USER` | `SUPERADMIN`
+
+**Nota V10:** `supabase_uid` pasó de `NOT NULL` a nullable para soportar usuarios registrados via auth nativa (sin Supabase). Un usuario tiene `supabase_uid` OR `password_hash`, no ambos a la vez.
 
 ### AuthIdentity
 
@@ -45,6 +49,57 @@ CREATE INDEX idx_auth_identities_user_id ON auth_identities(user_id);
 ---
 
 ## Endpoints
+
+### POST /api/public/auth/register
+**Auth:** Público
+**Descripción:** Registro nativo con email y contraseña. Crea el usuario en la BD con `password_hash` (BCrypt). No requiere Supabase.
+
+**Request body:**
+```json
+{
+  "fullName": "Juan Pérez",
+  "email": "juan@email.com",
+  "password": "contraseña123"
+}
+```
+
+**Validaciones:**
+- `fullName`: `@NotBlank`, `@Size(min=2, max=200)`
+- `email`: `@NotBlank`, `@Email`
+- `password`: `@NotBlank`, `@Size(min=6)`
+
+**Response 201:**
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJ...",
+    "user": { "id": 1, "fullName": "Juan Pérez", "email": "...", "platformRole": "USER" }
+  }
+}
+```
+
+**Lógica:** Verificar email único → hashear contraseña (BCrypt) → crear User → emitir JWT HS384 firmado con `APP_JWT_SECRET`.
+
+---
+
+### POST /api/public/auth/login
+**Auth:** Público
+**Descripción:** Login nativo con email y contraseña.
+
+**Request body:**
+```json
+{
+  "email": "juan@email.com",
+  "password": "contraseña123"
+}
+```
+
+**Response 200:** igual que register (token + user)
+
+**Lógica:** Buscar user por email → verificar password con BCrypt → emitir JWT HS384.
+
+---
 
 ### POST /api/auth/sync
 **Auth:** Bearer JWT (cualquier usuario autenticado)
@@ -154,7 +209,7 @@ CREATE INDEX idx_auth_identities_user_id ON auth_identities(user_id);
 ## DTOs
 
 ```java
-// Response
+// Response usuario
 public record UserDto(
     Long id,
     String fullName,
@@ -163,7 +218,26 @@ public record UserDto(
     String platformRole
 ) {}
 
-// Request sync
+// Response auth nativa (register y login)
+public record AuthResponse(
+    String token,   // JWT HS384
+    UserDto user
+) {}
+
+// Request registro nativo
+public record RegisterRequest(
+    @NotBlank @Size(min=2, max=200) String fullName,
+    @NotBlank @Email String email,
+    @NotBlank @Size(min=6) String password
+) {}
+
+// Request login nativo
+public record LoginRequest(
+    @NotBlank @Email String email,
+    @NotBlank String password
+) {}
+
+// Request sync Supabase
 public record SyncUserRequest(
     @NotBlank String supabaseUid,
     @NotBlank @Email String email,
@@ -194,6 +268,19 @@ public record UserMembershipDto(
 ---
 
 ## Tests de Integración
+
+### NativeAuthControllerTest
+
+```
+✅ POST /api/public/auth/register — registro exitoso: 201 con token y user
+✅ POST /api/public/auth/register — email duplicado: 409
+✅ POST /api/public/auth/register — password muy corta: 400
+✅ POST /api/public/auth/register — email inválido: 400
+✅ POST /api/public/auth/login — credenciales correctas: 200 con token
+✅ POST /api/public/auth/login — contraseña incorrecta: 401
+✅ POST /api/public/auth/login — email no existe: 401
+✅ POST /api/public/auth/login — body inválido: 400
+```
 
 ### AuthSyncControllerTest
 
@@ -228,7 +315,7 @@ public record UserMembershipDto(
 
 ## Notas de Implementación
 
-- El `supabase_uid` es el `sub` del JWT de Supabase. Usarlo siempre para identificar al usuario en requests.
-- `SecurityUtils.getCurrentUserId()` debe hacer un lookup en BD por `supabase_uid` extraído del JWT. Cachear el resultado en el request actual.
-- El email viene de Supabase y es de confianza — no re-verificar.
-- `platform_role = SUPERADMIN` nunca se setea en `/auth/sync` — solo via `/api/platform/admins/promote`.
+- **Auth Supabase:** el `supabase_uid` es el `sub` del JWT. `CustomJwtAuthenticationConverter` busca el user en BD por `supabase_uid`.
+- **Auth nativa:** el `sub` del JWT HS384 es el `id` del User (Long como string). El `DualJwtDecoder` intenta primero el decoder nativo (HS384), si falla prueba con Supabase JWKS.
+- `SecurityUtils.getCurrentUserId()` funciona con ambos tipos de JWT.
+- `platform_role = SUPERADMIN` nunca se setea en `/auth/sync` ni en registro nativo — solo via `/api/platform/admins/promote`.

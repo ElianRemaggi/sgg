@@ -142,15 +142,14 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 
 | Módulo | Tests escritos | Pasando | Cobertura |
 |--------|---------------|---------|-----------|
-| identity | 10 | 10 | AuthSyncControllerTest (5), UserControllerTest (5) |
+| identity | 18 | 18 | NativeAuthControllerTest (8), AuthSyncControllerTest (5), UserControllerTest (5) |
 | tenancy | 24 | 24 | GymSearchControllerTest (3), JoinRequestControllerTest (5), AdminMembersControllerTest (14), MembershipControllerTest (2) |
-| coaching | 0 | 0 | - |
 | training | 20 | 20 | RoutineTemplateControllerTest (13), RoutineAssignmentControllerTest (7) |
 | tracking | 10 | 10* | TrackingControllerTest (10) |
 | schedule | 8 | 8* | ScheduleControllerTest (8) |
 | platform | 27 | 27 | PlatformGymControllerTest (19), PlatformAdminControllerTest (8) |
 
-**Total: 99 tests, 81 pasando localmente** (\* tracking y schedule requieren Docker Desktop corriendo)
+**Total: 107 tests, 89 pasando localmente** (\* tracking y schedule requieren Docker Desktop corriendo)
 
 ---
 

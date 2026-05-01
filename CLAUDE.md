@@ -56,7 +56,7 @@ sgg/
 - **Roles**: dos dimensiones independientes:
   - `users.platform_role`: `USER` | `SUPERADMIN` (global)
   - `gym_members.role`: `MEMBER` | `COACH` | `ADMIN` | `ADMIN_COACH` (por gym)
-- **Auth**: Supabase emite JWT → Spring Security los valida como Resource Server (JWKS URI).
+- **Auth**: Supabase emite JWT → Spring Security los valida. También soporta auth nativa (email/password) con JWT firmado HS384 (ver `NativeAuthController`). `DualJwtDecoder` intenta decodificar primero con el secreto nativo (HS384) y si falla prueba con Supabase JWKS.
 - **Multi-tenancy impl**: `TenantContext` (ThreadLocal) almacena `gym_id` actual. `TenantInterceptor` extrae `gymId` del path `/api/gyms/{gymId}/**` y valida acceso. Hibernate `@FilterDef` aplica `WHERE gym_id = :gymId` automáticamente.
 - **Clientes**: Next.js (admin/coach/superadmin) y React Native (members). Misma API, distintos endpoints por rol.
 - **Key libs backend**: Lombok, MapStruct 1.6 (DTO mapping), Testcontainers 1.19 (tests de integración).
@@ -68,20 +68,22 @@ sgg/
 ```
 com.sgg
 ├── common/        # config, security, multitenancy, exceptions, DTOs base
-├── identity/      # users, auth sync con Supabase
+├── identity/      # users, auth sync con Supabase + native auth
 ├── tenancy/       # gyms, gym_members, membresías
-├── coaching/      # coach_assignments
 ├── training/      # routine_templates, blocks, exercises, assignments
 ├── tracking/      # exercise_completions
 ├── schedule/      # schedule_activities
 └── platform/      # superadmin: ABM de gyms y gestión de admins
 ```
 
+> **Nota:** El módulo `coaching` (coach_assignments) está planificado pero **no implementado** aún.
+> El proyecto `sgg-app` (React Native) está planificado pero **no existe** en el repositorio todavía.
+
 Dependencias (solo en esta dirección, nunca al revés):
 ```
-identity ← tenancy ← coaching ← training ← tracking
-                                     ↑
-                               schedule (solo depende de tenancy)
+identity ← tenancy ← training ← tracking
+                          ↑
+                    schedule (solo depende de tenancy)
 platform → tenancy, identity
 ```
 
@@ -109,13 +111,15 @@ platform → tenancy, identity
 
 ## ✅ Reglas de Calidad
 
-- Todo endpoint debe tener su test de integración (`@SpringBootTest` + Testcontainers)
+- Todo endpoint debe tener su test de integración extendiendo `BaseIntegrationTest` (en `com.sgg.common`). No replicar la config de Testcontainers — ya está en la clase base.
 - Validaciones con Bean Validation (`@Valid`, `@NotNull`, `@Size`, etc.) en los DTOs
 - Nunca lógica de negocio en controllers — solo en services
 - Nunca queries en entities — solo en repositories
 - Excepciones de negocio: usar `BusinessException` del módulo `common`
 - Logs: usar SLF4J (`private static final Logger log = LoggerFactory.getLogger(...)`)
 - No usar `System.out.println` nunca
+- Constructor injection siempre (via `@RequiredArgsConstructor`). Nunca `@Autowired` en campos.
+- Services: `@Transactional` a nivel de clase + `@Transactional(readOnly = true)` en métodos de lectura.
 
 ---
 
@@ -125,6 +129,31 @@ platform → tenancy, identity
 - **`sgg_dev`** = desarrollo. Se usa con `docker-compose up` (override apunta aquí)
 - Nunca meter datos de prueba en `sgg`. Usar siempre `sgg_dev` + `seed-dev-db.sh`
 - Para resetear dev: `./scripts/reset-dev-db.sh` (dropea y recrea `sgg_dev`)
+
+---
+
+## 🔑 Variables de Entorno Requeridas
+
+**Backend (`sgg-api`):**
+
+| Variable | Descripción |
+|----------|-------------|
+| `SPRING_DATASOURCE_URL` | URL JDBC de PostgreSQL |
+| `SPRING_DATASOURCE_USERNAME` | Usuario de BD |
+| `SPRING_DATASOURCE_PASSWORD` | Contraseña de BD |
+| `SUPABASE_JWKS_URI` | URI del JWKS de Supabase (`https://<project>.supabase.co/auth/v1/.well-known/jwks.json`) |
+| `APP_JWT_SECRET` | Secreto HS384 para auth nativa (mín. 32 chars) |
+| `APP_CORS_WEB_ORIGIN` | Origen permitido para el panel web (default: `http://localhost:3000`) |
+| `APP_CORS_ALLOWED_ORIGINS` | Orígenes adicionales permitidos (ej: URL del tunnel de Expo) |
+
+**Frontend web (`sgg-web/.env.local`):**
+
+| Variable | Descripción |
+|----------|-------------|
+| `NEXT_PUBLIC_API_URL` | URL del backend (default: `http://localhost:8080`) |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon key de Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (solo server-side, nunca exponer) |
 
 ---
 
@@ -194,7 +223,8 @@ cd sgg-app && npx expo start --tunnel   # si hay problemas de red en WSL2
 - Módulo Tracking: `docs/backend/modules/05-tracking.md`
 - Módulo Schedule: `docs/backend/modules/06-schedule.md`
 - Módulo Platform: `docs/backend/modules/07-platform.md`
-- Frontend Web — Arquitectura y patrones: `docs/frontend/FRONTEND.md`
+- Frontend Web — Arquitectura y patrones: `docs/frontend/FRONTEND.md` *(nota: las rutas reales usan `/gym/[gymId]/admin/`, `/gym/[gymId]/coach/`, `/gym/[gymId]/member/` — sin grupos de ruta `(admin)`/`(coach)` como indica la doc)*
+
 - Frontend Web — Convenciones: `docs/frontend/FRONTEND-CONVENTIONS.md`
 - Frontend Web — Auth: `docs/frontend/sections/01-auth.md`
 - Frontend Web — Admin Miembros: `docs/frontend/sections/02-admin-members.md`

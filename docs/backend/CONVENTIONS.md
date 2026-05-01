@@ -134,9 +134,17 @@ Nomenclatura: `V{n}__{descripcion_con_guiones_bajos}.sql`
 V1__create_users.sql
 V2__create_auth_identities.sql
 V3__create_gyms.sql
-...
-V12__create_indexes.sql
-V13__add_platform_role_to_users.sql   ← nueva migración, NUNCA editar V1-V12
+V4__create_gym_members.sql
+V5__create_routine_templates.sql
+V6__create_template_blocks.sql
+V7__create_template_exercises.sql
+V8__create_routine_assignments.sql
+V9__add_cascade_deletes.sql
+V10__native_auth_support.sql
+V11__gym_auto_accept_members.sql
+V12__create_exercise_completions.sql
+V13__create_schedule_activities.sql   ← última migración aplicada
+V14__...                              ← próxima nueva migración
 ```
 
 **Reglas:**

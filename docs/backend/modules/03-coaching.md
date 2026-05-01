@@ -2,6 +2,8 @@
 **Package:** `com.sgg.coaching`
 **Responsabilidad:** Asignación de coaches a members dentro de un gym.
 
+> ⚠️ **Este módulo está planificado pero NO implementado.** No existe código Java en `com.sgg.coaching`. Este documento describe el diseño para cuando se implemente.
+
 ---
 
 ## Entidades
