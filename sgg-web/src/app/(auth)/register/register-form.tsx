@@ -41,7 +41,6 @@ export function RegisterForm() {
         return
       }
 
-      // Store token in httpOnly cookie via route handler
       await fetch('/api/auth/native', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,91 +56,91 @@ export function RegisterForm() {
     setLoading(false)
   }
 
+  const inputClass = "w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors"
+
   return (
-    <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
-            Nombre completo
-          </label>
-          <input
-            id="fullName"
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            required
-            minLength={2}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Tu nombre"
-          />
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-1.5">
+        <label htmlFor="fullName" className="block text-sm font-medium text-foreground">
+          Nombre completo
+        </label>
+        <input
+          id="fullName"
+          type="text"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          required
+          minLength={2}
+          className={inputClass}
+          placeholder="Tu nombre"
+        />
+      </div>
 
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="tu@email.com"
-          />
-        </div>
+      <div className="space-y-1.5">
+        <label htmlFor="email" className="block text-sm font-medium text-foreground">
+          Email
+        </label>
+        <input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className={inputClass}
+          placeholder="tu@email.com"
+        />
+      </div>
 
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-            Contraseña
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Mínimo 6 caracteres"
-          />
-        </div>
+      <div className="space-y-1.5">
+        <label htmlFor="password" className="block text-sm font-medium text-foreground">
+          Contraseña
+        </label>
+        <input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          minLength={6}
+          className={inputClass}
+          placeholder="Mínimo 6 caracteres"
+        />
+      </div>
 
-        <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-            Confirmar contraseña
-          </label>
-          <input
-            id="confirmPassword"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            minLength={6}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Repetí la contraseña"
-          />
-        </div>
+      <div className="space-y-1.5">
+        <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
+          Confirmar contraseña
+        </label>
+        <input
+          id="confirmPassword"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          minLength={6}
+          className={inputClass}
+          placeholder="Repetí la contraseña"
+        />
+      </div>
 
-        {error && (
-          <p className="text-sm text-red-600">{error}</p>
-        )}
+      {error && (
+        <p className="text-sm text-destructive-foreground">{error}</p>
+      )}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full px-4 py-2.5 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          {loading ? 'Creando cuenta...' : 'Crear cuenta'}
-        </button>
-      </form>
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full px-4 py-2.5 rounded-lg font-medium text-white disabled:opacity-50 transition-opacity bg-gradient-to-r from-primary-container to-secondary-vivid hover:opacity-90"
+      >
+        {loading ? 'Creando cuenta...' : 'Crear cuenta'}
+      </button>
 
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-muted-foreground">
         ¿Ya tenés cuenta?{' '}
-        <Link href="/login" className="text-blue-600 hover:underline">
+        <Link href="/login" className="text-primary hover:text-primary/80 transition-colors">
           Ingresar
         </Link>
       </p>
-    </div>
+    </form>
   )
 }
