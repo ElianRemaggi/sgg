@@ -34,7 +34,7 @@ public class AdminMembersController {
     }
 
     @PutMapping("/{memberId}/approve")
-    @PreAuthorize("@gymAccessChecker.isAdmin(#gymId) or hasRole('SUPERADMIN')")
+    @PreAuthorize("@gymAccessChecker.isAdmin(#gymId) or @gymAccessChecker.isCoach(#gymId) or hasRole('SUPERADMIN')")
     public ResponseEntity<ApiResponse<Void>> approve(
             @PathVariable Long gymId, @PathVariable Long memberId) {
         gymMemberService.approveMember(gymId, memberId);
