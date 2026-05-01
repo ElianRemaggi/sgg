@@ -4,26 +4,52 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Aether Fitness — Dark Theme */
+    --background: 222 24% 8%;
+    --foreground: 234 20% 90%;
+
+    --card: 220 13% 13%;
+    --card-foreground: 234 20% 90%;
+
+    --popover: 222 14% 11%;
+    --popover-foreground: 234 20% 90%;
+
+    --primary: 241 100% 88%;
+    --primary-foreground: 244 100% 33%;
+
+    --secondary: 222 11% 17%;
+    --secondary-foreground: 234 20% 90%;
+
+    --muted: 220 13% 13%;
+    --muted-foreground: 247 8% 59%;
+
+    --accent: 222 11% 17%;
+    --accent-foreground: 234 20% 90%;
+
+    --destructive: 356 100% 29%;
+    --destructive-foreground: 5 100% 84%;
+
+    --border: 244 10% 30%;
+    --input: 219 15% 12%;
+    --ring: 241 100% 88%;
+
     --radius: 0.5rem;
+
+    /* Extended Aether tokens */
+    --surface-lowest: 222 26% 6%;
+    --surface-low: 219 15% 12%;
+    --surface-container: 220 13% 13%;
+    --surface-high: 222 11% 17%;
+    --surface-highest: 222 9% 22%;
+    --outline: 247 8% 59%;
+    --outline-variant: 244 10% 30%;
+    --primary-container: 242 75% 63%;
+    --on-primary-container: 255 100% 97%;
+    --secondary-vivid: 190 100% 50%;
+    --tertiary: 157 78% 52%;
+    --tertiary-foreground: 154 100% 11%;
+    --tertiary-container: 157 100% 25%;
+    --on-tertiary-container: 140 100% 90%;
   }
 }
 
@@ -31,8 +57,43 @@
   * {
     @apply border-border;
   }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
     @apply bg-background text-foreground;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: var(--font-lexend), system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-space-grotesk), system-ui, sans-serif;
+    font-weight: 600;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.25);
+    color: hsl(var(--foreground));
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--surface-lowest));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--outline-variant));
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--outline));
   }
 }
