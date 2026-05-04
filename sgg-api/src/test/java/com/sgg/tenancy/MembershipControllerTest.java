@@ -40,6 +40,7 @@ class MembershipControllerTest extends BaseIntegrationTest {
         user.setSupabaseUid("user-uid-001");
         user.setEmail("user@test.com");
         user.setFullName("Test User");
+        user.setUsername("user_uid_001");
         user = userRepository.save(user);
     }
 
@@ -49,6 +50,7 @@ class MembershipControllerTest extends BaseIntegrationTest {
         owner.setSupabaseUid("owner-uid-001");
         owner.setEmail("owner@test.com");
         owner.setFullName("Owner");
+        owner.setUsername("owner_uid_001");
         owner = userRepository.save(owner);
 
         Gym gym = new Gym();

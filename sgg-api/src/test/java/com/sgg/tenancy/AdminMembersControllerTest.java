@@ -32,10 +32,12 @@ class AdminMembersControllerTest extends BaseIntegrationTest {
     private User admin;
     private User coach;
     private User memberUser;
+    private User activeMemberUser;
     private Gym gym;
     private Gym otherGym;
     private GymMember adminMember;
     private GymMember pendingMember;
+    private GymMember activeMemberMember;
 
     @BeforeEach
     void setUp() {
@@ -47,6 +49,7 @@ class AdminMembersControllerTest extends BaseIntegrationTest {
         admin = createUser("admin-uid-001", "admin@test.com", "Admin User");
         coach = createUser("coach-uid-001", "coach@test.com", "Coach User");
         memberUser = createUser("member-uid-001", "member@test.com", "Member User");
+        activeMemberUser = createUser("member-uid-002", "member2@test.com", "Active Member");
 
         // Gyms
         gym = createGym("CrossFit Norte", "crossfit-norte", admin.getId());
@@ -60,6 +63,9 @@ class AdminMembersControllerTest extends BaseIntegrationTest {
 
         // Pending member
         pendingMember = createMembership(gym.getId(), memberUser.getId(), "MEMBER", "PENDING");
+
+        // Active regular member (used for block tests and security checks)
+        activeMemberMember = createMembership(gym.getId(), activeMemberUser.getId(), "MEMBER", "ACTIVE");
     }
 
     @Test
@@ -69,7 +75,7 @@ class AdminMembersControllerTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.content").isArray())
-            .andExpect(jsonPath("$.data.totalElements").value(3));
+            .andExpect(jsonPath("$.data.totalElements").value(4));
     }
 
     @Test
@@ -102,7 +108,7 @@ class AdminMembersControllerTest extends BaseIntegrationTest {
                 .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("admin-uid-001"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.size").value(2))
-            .andExpect(jsonPath("$.data.totalElements").value(3))
+            .andExpect(jsonPath("$.data.totalElements").value(4))
             .andExpect(jsonPath("$.data.totalPages").value(2));
     }
 
@@ -133,10 +139,53 @@ class AdminMembersControllerTest extends BaseIntegrationTest {
     }
 
     @Test
-    void block_changesMemberToBlocked() throws Exception {
-        GymMember activeMember = createMembership(gym.getId(), createUser("block-uid", "block@test.com", "Block Me").getId(), "MEMBER", "ACTIVE");
+    void approve_asCoach_returns200() throws Exception {
+        mockMvc.perform(put("/api/gyms/{gymId}/admin/members/{memberId}/approve", gym.getId(), pendingMember.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("coach-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+    }
 
-        mockMvc.perform(put("/api/gyms/{gymId}/admin/members/{memberId}/block", gym.getId(), activeMember.getId())
+    @Test
+    void reject_asCoach_returns200() throws Exception {
+        mockMvc.perform(put("/api/gyms/{gymId}/admin/members/{memberId}/reject", gym.getId(), pendingMember.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("coach-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void block_asCoach_returns200() throws Exception {
+        mockMvc.perform(put("/api/gyms/{gymId}/admin/members/{memberId}/block", gym.getId(), activeMemberMember.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("coach-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void approve_asMember_returns403() throws Exception {
+        mockMvc.perform(put("/api/gyms/{gymId}/admin/members/{memberId}/approve", gym.getId(), pendingMember.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("member-uid-002"))))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void reject_asMember_returns403() throws Exception {
+        mockMvc.perform(put("/api/gyms/{gymId}/admin/members/{memberId}/reject", gym.getId(), pendingMember.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("member-uid-002"))))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void block_asMember_returns403() throws Exception {
+        mockMvc.perform(put("/api/gyms/{gymId}/admin/members/{memberId}/block", gym.getId(), activeMemberMember.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("member-uid-002"))))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void block_changesMemberToBlocked() throws Exception {
+        mockMvc.perform(put("/api/gyms/{gymId}/admin/members/{memberId}/block", gym.getId(), activeMemberMember.getId())
                 .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("admin-uid-001"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
@@ -200,6 +249,7 @@ class AdminMembersControllerTest extends BaseIntegrationTest {
         user.setSupabaseUid(uid);
         user.setEmail(email);
         user.setFullName(name);
+        user.setUsername(uid.replace("-", "_").substring(0, Math.min(uid.replace("-", "_").length(), 30)));
         return userRepository.save(user);
     }
 

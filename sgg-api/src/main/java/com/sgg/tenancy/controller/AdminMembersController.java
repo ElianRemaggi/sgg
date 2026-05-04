@@ -42,7 +42,7 @@ public class AdminMembersController {
     }
 
     @PutMapping("/{memberId}/reject")
-    @PreAuthorize("@gymAccessChecker.isAdmin(#gymId) or hasRole('SUPERADMIN')")
+    @PreAuthorize("@gymAccessChecker.isAdmin(#gymId) or @gymAccessChecker.isCoach(#gymId) or hasRole('SUPERADMIN')")
     public ResponseEntity<ApiResponse<Void>> reject(
             @PathVariable Long gymId, @PathVariable Long memberId) {
         gymMemberService.rejectMember(gymId, memberId);
@@ -50,7 +50,7 @@ public class AdminMembersController {
     }
 
     @PutMapping("/{memberId}/block")
-    @PreAuthorize("@gymAccessChecker.isAdmin(#gymId) or hasRole('SUPERADMIN')")
+    @PreAuthorize("@gymAccessChecker.isAdmin(#gymId) or @gymAccessChecker.isCoach(#gymId) or hasRole('SUPERADMIN')")
     public ResponseEntity<ApiResponse<Void>> block(
             @PathVariable Long gymId, @PathVariable Long memberId) {
         gymMemberService.blockMember(gymId, memberId);

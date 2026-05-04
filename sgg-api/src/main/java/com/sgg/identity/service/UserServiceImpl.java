@@ -25,6 +25,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final AuthIdentityRepository authIdentityRepository;
     private final UserMapper userMapper;
+    private final UsernameGenerator usernameGenerator;
 
     @Override
     public UserDto syncUser(SyncUserRequest request) {
@@ -50,6 +51,7 @@ public class UserServiceImpl implements UserService {
                 newUser.setEmail(request.email());
                 newUser.setFullName(request.fullName());
                 newUser.setAvatarUrl(request.avatarUrl());
+                newUser.setUsername(usernameGenerator.generateFromEmail(request.email()));
                 newUser = userRepository.save(newUser);
                 log.info("Usuario creado: id={}, email={}", newUser.getId(), newUser.getEmail());
                 return newUser;

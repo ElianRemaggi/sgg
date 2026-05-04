@@ -349,6 +349,7 @@ class RoutineTemplateControllerTest extends BaseIntegrationTest {
         user.setSupabaseUid(uid);
         user.setEmail(email);
         user.setFullName(name);
+        user.setUsername(uid.replace("-", "_").substring(0, Math.min(uid.replace("-", "_").length(), 30)));
         return userRepository.save(user);
     }
 

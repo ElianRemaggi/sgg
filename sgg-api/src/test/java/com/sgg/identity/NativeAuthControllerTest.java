@@ -37,7 +37,7 @@ class NativeAuthControllerTest extends BaseIntegrationTest {
 
     @Test
     void register_ok_createsUserAndReturnsToken() throws Exception {
-        RegisterRequest request = new RegisterRequest("test@email.com", "Juan Pérez", "password123");
+        RegisterRequest request = new RegisterRequest("juanperez", "test@email.com", "Juan Pérez", "password123");
 
         mockMvc.perform(post("/api/public/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -46,10 +46,12 @@ class NativeAuthControllerTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.token").isNotEmpty())
             .andExpect(jsonPath("$.data.user.email").value("test@email.com"))
+            .andExpect(jsonPath("$.data.user.username").value("juanperez"))
             .andExpect(jsonPath("$.data.user.fullName").value("Juan Pérez"))
             .andExpect(jsonPath("$.data.user.platformRole").value("USER"));
 
         User saved = userRepository.findByEmail("test@email.com").orElseThrow();
+        assertThat(saved.getUsername()).isEqualTo("juanperez");
         assertThat(saved.getPasswordHash()).isNotNull();
         assertThat(saved.getSupabaseUid()).isNull();
         assertThat(passwordEncoder.matches("password123", saved.getPasswordHash())).isTrue();
@@ -58,12 +60,13 @@ class NativeAuthControllerTest extends BaseIntegrationTest {
     @Test
     void register_duplicateEmail_returns409() throws Exception {
         User existing = new User();
+        existing.setUsername("existente");
         existing.setEmail("test@email.com");
         existing.setFullName("Existente");
         existing.setPasswordHash(passwordEncoder.encode("pass"));
         userRepository.save(existing);
 
-        RegisterRequest request = new RegisterRequest("test@email.com", "Otro", "password123");
+        RegisterRequest request = new RegisterRequest("otrouser", "test@email.com", "Otro", "password123");
 
         mockMvc.perform(post("/api/public/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -74,19 +77,65 @@ class NativeAuthControllerTest extends BaseIntegrationTest {
     }
 
     @Test
-    void register_invalidBody_returns400() throws Exception {
-        RegisterRequest request = new RegisterRequest("not-an-email", "", "12");
+    void register_duplicateUsername_returns409() throws Exception {
+        User existing = new User();
+        existing.setUsername("juanperez");
+        existing.setEmail("otro@email.com");
+        existing.setFullName("Existente");
+        existing.setPasswordHash(passwordEncoder.encode("pass"));
+        userRepository.save(existing);
+
+        RegisterRequest request = new RegisterRequest("juanperez", "nuevo@email.com", "Nuevo", "password123");
 
         mockMvc.perform(post("/api/public/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("Ya existe una cuenta con ese username"));
+    }
+
+    @Test
+    void register_invalidUsernameFormat_returns400() throws Exception {
+        // Uppercase
+        mockMvc.perform(post("/api/public/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"JuanPerez\",\"email\":\"a@a.com\",\"fullName\":\"A\",\"password\":\"123456\"}"))
+            .andExpect(status().isBadRequest());
+
+        // Too short (< 3)
+        mockMvc.perform(post("/api/public/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"ab\",\"email\":\"a@a.com\",\"fullName\":\"A\",\"password\":\"123456\"}"))
+            .andExpect(status().isBadRequest());
+
+        // Too long (> 30)
+        mockMvc.perform(post("/api/public/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"email\":\"a@a.com\",\"fullName\":\"A\",\"password\":\"123456\"}"))
+            .andExpect(status().isBadRequest());
+
+        // Special chars
+        mockMvc.perform(post("/api/public/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"juan-perez\",\"email\":\"a@a.com\",\"fullName\":\"A\",\"password\":\"123456\"}"))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void register_invalidBody_returns400() throws Exception {
+        // invalid email, blank fullName, short password, blank username
+        mockMvc.perform(post("/api/public/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"\",\"email\":\"not-an-email\",\"fullName\":\"\",\"password\":\"12\"}"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test
-    void login_ok_returnsToken() throws Exception {
+    void login_byEmail_ok_returnsToken() throws Exception {
         User user = new User();
+        user.setUsername("juanperez");
         user.setEmail("test@email.com");
         user.setFullName("Juan Pérez");
         user.setPasswordHash(passwordEncoder.encode("password123"));
@@ -100,12 +149,34 @@ class NativeAuthControllerTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.token").isNotEmpty())
-            .andExpect(jsonPath("$.data.user.email").value("test@email.com"));
+            .andExpect(jsonPath("$.data.user.email").value("test@email.com"))
+            .andExpect(jsonPath("$.data.user.username").value("juanperez"));
+    }
+
+    @Test
+    void login_byUsername_ok_returnsToken() throws Exception {
+        User user = new User();
+        user.setUsername("juanperez");
+        user.setEmail("test@email.com");
+        user.setFullName("Juan Pérez");
+        user.setPasswordHash(passwordEncoder.encode("password123"));
+        userRepository.save(user);
+
+        LoginRequest request = new LoginRequest("juanperez", "password123");
+
+        mockMvc.perform(post("/api/public/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.token").isNotEmpty())
+            .andExpect(jsonPath("$.data.user.username").value("juanperez"));
     }
 
     @Test
     void login_wrongPassword_returns409() throws Exception {
         User user = new User();
+        user.setUsername("juanperez");
         user.setEmail("test@email.com");
         user.setFullName("Juan Pérez");
         user.setPasswordHash(passwordEncoder.encode("password123"));
@@ -117,7 +188,7 @@ class NativeAuthControllerTest extends BaseIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isConflict())
-            .andExpect(jsonPath("$.message").value("Email o contraseña incorrectos"));
+            .andExpect(jsonPath("$.message").value("Usuario o contraseña incorrectos"));
     }
 
     @Test
@@ -128,12 +199,24 @@ class NativeAuthControllerTest extends BaseIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isConflict())
-            .andExpect(jsonPath("$.message").value("Email o contraseña incorrectos"));
+            .andExpect(jsonPath("$.message").value("Usuario o contraseña incorrectos"));
+    }
+
+    @Test
+    void login_unknownUsername_returns409() throws Exception {
+        LoginRequest request = new LoginRequest("noexiste", "password123");
+
+        mockMvc.perform(post("/api/public/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value("Usuario o contraseña incorrectos"));
     }
 
     @Test
     void login_googleUser_returns409() throws Exception {
         User user = new User();
+        user.setUsername("googleuser");
         user.setEmail("google@email.com");
         user.setFullName("Google User");
         user.setSupabaseUid("supabase-uid-google");
@@ -151,6 +234,7 @@ class NativeAuthControllerTest extends BaseIntegrationTest {
     @Test
     void protectedEndpoint_withNativeToken_works() throws Exception {
         User user = new User();
+        user.setUsername("juanperez");
         user.setEmail("test@email.com");
         user.setFullName("Juan Pérez");
         user.setPasswordHash(passwordEncoder.encode("password123"));
@@ -161,6 +245,7 @@ class NativeAuthControllerTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/users/me")
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.email").value("test@email.com"));
+            .andExpect(jsonPath("$.data.email").value("test@email.com"))
+            .andExpect(jsonPath("$.data.username").value("juanperez"));
     }
 }

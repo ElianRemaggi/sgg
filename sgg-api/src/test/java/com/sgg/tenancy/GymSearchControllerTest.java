@@ -39,6 +39,7 @@ class GymSearchControllerTest extends BaseIntegrationTest {
         owner.setSupabaseUid("owner-uid-001");
         owner.setEmail("owner@test.com");
         owner.setFullName("Gym Owner");
+        owner.setUsername("owner_uid_001");
         owner = userRepository.save(owner);
     }
 

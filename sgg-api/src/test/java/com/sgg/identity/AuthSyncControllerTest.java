@@ -60,6 +60,7 @@ class AuthSyncControllerTest extends BaseIntegrationTest {
         existing.setEmail("test@email.com");
         existing.setFullName("Nombre Viejo");
         existing.setAvatarUrl("https://old-avatar.com/photo.jpg");
+        existing.setUsername("supabase_uid_123");
         userRepository.save(existing);
 
         SyncUserRequest request = new SyncUserRequest(

@@ -2,9 +2,17 @@ package com.sgg.identity.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record RegisterRequest(
+    @NotBlank(message = "El username es obligatorio")
+    @Pattern(
+        regexp = "^[a-z0-9_]{3,30}$",
+        message = "El username debe tener 3-30 caracteres y solo contener letras minúsculas, números o guion bajo"
+    )
+    String username,
+
     @NotBlank(message = "El email es obligatorio")
     @Email(message = "El email no es válido")
     String email,

@@ -15,5 +15,5 @@ spring:
 
 app:
   jwt:
-    secret: test-secret-key-minimum-32-characters-long!!
+    secret: test-secret-key-minimum-48-characters-long-for-hs384!!
     expiration-ms: 86400000

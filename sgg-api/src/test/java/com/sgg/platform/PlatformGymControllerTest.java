@@ -304,6 +304,7 @@ class PlatformGymControllerTest extends BaseIntegrationTest {
         user.setEmail(email);
         user.setFullName(name);
         user.setPlatformRole(platformRole);
+        user.setUsername(uid.replace("-", "_").substring(0, Math.min(uid.replace("-", "_").length(), 30)));
         return userRepository.save(user);
     }
 

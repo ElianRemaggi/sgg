@@ -42,12 +42,14 @@ class JoinRequestControllerTest extends BaseIntegrationTest {
         owner.setSupabaseUid("owner-uid-001");
         owner.setEmail("owner@test.com");
         owner.setFullName("Gym Owner");
+        owner.setUsername("owner_uid_001");
         owner = userRepository.save(owner);
 
         member = new User();
         member.setSupabaseUid("member-uid-001");
         member.setEmail("member@test.com");
         member.setFullName("New Member");
+        member.setUsername("member_uid_001");
         member = userRepository.save(member);
 
         gym = new Gym();

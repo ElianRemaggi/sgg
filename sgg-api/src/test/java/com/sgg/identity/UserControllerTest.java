@@ -37,6 +37,7 @@ class UserControllerTest extends BaseIntegrationTest {
         testUser.setEmail("usuario@test.com");
         testUser.setFullName("Usuario Test");
         testUser.setAvatarUrl("https://avatar.com/test.jpg");
+        testUser.setUsername("test_uid_001");
         testUser = userRepository.save(testUser);
     }
 

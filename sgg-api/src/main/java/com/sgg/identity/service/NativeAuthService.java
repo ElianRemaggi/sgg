@@ -30,8 +30,12 @@ public class NativeAuthService {
         if (userRepository.findByEmail(request.email()).isPresent()) {
             throw new BusinessException("Ya existe una cuenta con ese email");
         }
+        if (userRepository.existsByUsername(request.username())) {
+            throw new BusinessException("Ya existe una cuenta con ese username");
+        }
 
         User user = new User();
+        user.setUsername(request.username());
         user.setEmail(request.email());
         user.setFullName(request.fullName());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
@@ -44,15 +48,14 @@ public class NativeAuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
-            .orElseThrow(() -> new BusinessException("Email o contraseña incorrectos"));
+        User user = findByIdentifier(request.identifier());
 
         if (user.getPasswordHash() == null) {
             throw new BusinessException("Esta cuenta usa Google para ingresar");
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new BusinessException("Email o contraseña incorrectos");
+            throw new BusinessException("Usuario o contraseña incorrectos");
         }
 
         log.info("Login nativo exitoso: {}", user.getEmail());
@@ -61,9 +64,19 @@ public class NativeAuthService {
         return new AuthResponse(token, toDto(user));
     }
 
+    private User findByIdentifier(String identifier) {
+        if (identifier.contains("@")) {
+            return userRepository.findByEmail(identifier)
+                .orElseThrow(() -> new BusinessException("Usuario o contraseña incorrectos"));
+        }
+        return userRepository.findByUsername(identifier)
+            .orElseThrow(() -> new BusinessException("Usuario o contraseña incorrectos"));
+    }
+
     private UserDto toDto(User user) {
         return new UserDto(
             user.getId(),
+            user.getUsername(),
             user.getFullName(),
             user.getEmail(),
             user.getAvatarUrl(),
