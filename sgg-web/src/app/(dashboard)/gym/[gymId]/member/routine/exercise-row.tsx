@@ -96,13 +96,13 @@ export function ExerciseRow({ gymId, assignmentId, exercise, completion }: Exerc
               {confirmUndo && <span className="ml-1 text-xs">¿Confirmar?</span>}
             </Button>
           </div>
-          <div className="ml-6 mt-1 flex flex-wrap items-center gap-1">
-            <p className="text-xs text-muted-foreground">
-              {exercise.sets ? `${exercise.sets} series` : ''}
-              {exercise.sets && exercise.reps ? ' × ' : ''}
-              {exercise.reps ? `${exercise.reps} reps` : ''}
-              {exercise.restSeconds ? ` · ${exercise.restSeconds}s desc.` : ''}
-            </p>
+          <p className="ml-6 mt-0.5 text-xs text-muted-foreground">
+            {exercise.sets ? `${exercise.sets} series` : ''}
+            {exercise.sets && exercise.reps ? ' × ' : ''}
+            {exercise.reps ? `${exercise.reps} reps` : ''}
+            {exercise.restSeconds ? ` · ${exercise.restSeconds}s desc.` : ''}
+          </p>
+          <div className="ml-6 mt-1 flex items-center gap-1">
             {completion?.weightKg && (
               <Badge variant="secondary" className="text-xs">{completion.weightKg} kg</Badge>
             )}
