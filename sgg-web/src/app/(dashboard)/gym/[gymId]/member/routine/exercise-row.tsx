@@ -25,6 +25,17 @@ export function ExerciseRow({ gymId, assignmentId, exercise, completion }: Exerc
   const [notes, setNotes] = useState<string>(completion?.notes ?? '')
 
   const isCompleted = completion?.isCompleted === true
+  const [confirmUndo, setConfirmUndo] = useState(false)
+
+  function handleUndoClick() {
+    if (!confirmUndo) {
+      setConfirmUndo(true)
+      setTimeout(() => setConfirmUndo(false), 3000)
+    } else {
+      setConfirmUndo(false)
+      handleUndo()
+    }
+  }
 
   function handleComplete() {
     startTransition(async () => {
@@ -62,59 +73,68 @@ export function ExerciseRow({ gymId, assignmentId, exercise, completion }: Exerc
         isCompleted ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : 'border-border'
       }`}
     >
-      {/* Header row */}
-      <div className="flex items-center justify-between px-3 py-2">
-        <div className="flex items-center gap-2 min-w-0">
-          {isCompleted && <Check className="h-4 w-4 shrink-0 text-green-600" />}
-          <div className="min-w-0">
-            <p className={`text-sm font-medium truncate ${isCompleted ? 'text-green-700 dark:text-green-400' : ''}`}>
-              {exercise.name}
-            </p>
+      {/* Header row — completed: block layout to avoid truncation on mobile */}
+      {isCompleted ? (
+        <div className="px-3 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <Check className="h-4 w-4 shrink-0 text-green-600" />
+              <p className="text-sm font-medium truncate text-green-700 dark:text-green-400">
+                {exercise.name}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleUndoClick}
+              disabled={isPending}
+              className={`h-7 px-2 shrink-0 ml-2 transition-colors ${
+                confirmUndo ? 'text-destructive hover:text-destructive' : 'text-muted-foreground'
+              }`}
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              {confirmUndo && <span className="ml-1 text-xs">¿Confirmar?</span>}
+            </Button>
+          </div>
+          <div className="ml-6 mt-1 flex flex-wrap items-center gap-1">
             <p className="text-xs text-muted-foreground">
               {exercise.sets ? `${exercise.sets} series` : ''}
               {exercise.sets && exercise.reps ? ' × ' : ''}
               {exercise.reps ? `${exercise.reps} reps` : ''}
               {exercise.restSeconds ? ` · ${exercise.restSeconds}s desc.` : ''}
             </p>
+            {completion?.weightKg && (
+              <Badge variant="secondary" className="text-xs">{completion.weightKg} kg</Badge>
+            )}
+            {completion?.actualReps && (
+              <Badge variant="secondary" className="text-xs">{completion.actualReps} reps</Badge>
+            )}
           </div>
         </div>
-
-        <div className="flex items-center gap-2 ml-2 shrink-0">
-          {isCompleted && (
-            <div className="flex items-center gap-1 flex-wrap justify-end">
-              {completion?.weightKg && (
-                <Badge variant="secondary" className="text-xs">{completion.weightKg} kg</Badge>
-              )}
-              {completion?.actualReps && (
-                <Badge variant="secondary" className="text-xs">{completion.actualReps} reps</Badge>
-              )}
+      ) : (
+        <div className="flex items-center justify-between px-3 py-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{exercise.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {exercise.sets ? `${exercise.sets} series` : ''}
+                {exercise.sets && exercise.reps ? ' × ' : ''}
+                {exercise.reps ? `${exercise.reps} reps` : ''}
+                {exercise.restSeconds ? ` · ${exercise.restSeconds}s desc.` : ''}
+              </p>
             </div>
-          )}
-
-          {isCompleted ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleUndo}
-              disabled={isPending}
-              className="h-7 px-2 text-xs text-muted-foreground"
-            >
-              <Undo2 className="h-3 w-3 mr-1" />
-              Deshacer
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setExpanded(v => !v)}
-              disabled={isPending}
-              className="h-7 px-2"
-            >
-              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setExpanded(v => !v)}
+            disabled={isPending}
+            className="h-7 px-2 ml-2 shrink-0"
+          >
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
         </div>
-      </div>
+      )}
 
       {/* Expanded form */}
       {expanded && !isCompleted && (
