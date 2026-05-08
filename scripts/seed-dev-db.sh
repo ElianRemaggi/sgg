@@ -33,19 +33,30 @@ echo "  Tu user_id es: $REAL_USER"
 echo "Insertando datos de prueba..."
 eval "$PSQL_CMD" <<SQL
 
--- ═══ USUARIOS DE PRUEBA ═══
+-- ═══ USUARIOS NATIVOS (email/contraseña) ═══
+-- Contraseña de todos: p1qwas?
 
-INSERT INTO users (full_name, email, supabase_uid, platform_role)
+INSERT INTO users (full_name, email, username, platform_role, password_hash)
 VALUES
-    ('Coach María García', 'maria.coach@test.com', 'test-coach-uid-001', 'USER'),
-    ('Coach Pedro López', 'pedro.coach@test.com', 'test-coach-uid-002', 'USER'),
-    ('Juan Miembro', 'juan.miembro@test.com', 'test-member-uid-001', 'USER'),
-    ('Ana Miembro', 'ana.miembro@test.com', 'test-member-uid-002', 'USER'),
-    ('Carlos Miembro', 'carlos.miembro@test.com', 'test-member-uid-003', 'USER'),
-    ('Laura Miembro', 'laura.miembro@test.com', 'test-member-uid-004', 'USER'),
-    ('Sofía Pendiente', 'sofia.pendiente@test.com', 'test-pending-uid-001', 'USER'),
-    ('Diego Pendiente', 'diego.pendiente@test.com', 'test-pending-uid-002', 'USER'),
-    ('Bloqueado Test', 'bloqueado@test.com', 'test-blocked-uid-001', 'USER')
+    ('Super Admin', 'superadmin@sgg.com', 'superadmin', 'SUPERADMIN', '$2a$10$M.QEWfZS/ClA/Ss1y1GVGOZLtRlMcUW6oETOwuCOgoVJ0EuuEtPW6'),
+    ('Owner Test',  'owner@sgg.com',      'owner',      'USER',       '$2a$10$M.QEWfZS/ClA/Ss1y1GVGOZLtRlMcUW6oETOwuCOgoVJ0EuuEtPW6'),
+    ('Coach Test',  'coach@sgg.com',      'coachtest',  'USER',       '$2a$10$M.QEWfZS/ClA/Ss1y1GVGOZLtRlMcUW6oETOwuCOgoVJ0EuuEtPW6'),
+    ('Member Test', 'member@sgg.com',     'member',     'USER',       '$2a$10$M.QEWfZS/ClA/Ss1y1GVGOZLtRlMcUW6oETOwuCOgoVJ0EuuEtPW6')
+ON CONFLICT (email) DO NOTHING;
+
+-- ═══ USUARIOS DE PRUEBA (Supabase) ═══
+
+INSERT INTO users (full_name, email, username, supabase_uid, platform_role)
+VALUES
+    ('Coach María García', 'maria.coach@test.com', 'maria_coach',    'test-coach-uid-001',   'USER'),
+    ('Coach Pedro López',  'pedro.coach@test.com', 'pedro_coach',    'test-coach-uid-002',   'USER'),
+    ('Juan Miembro',       'juan.miembro@test.com','juan_miembro',   'test-member-uid-001',  'USER'),
+    ('Ana Miembro',        'ana.miembro@test.com', 'ana_miembro',    'test-member-uid-002',  'USER'),
+    ('Carlos Miembro',     'carlos.miembro@test.com','carlos_miembro','test-member-uid-003', 'USER'),
+    ('Laura Miembro',      'laura.miembro@test.com','laura_miembro', 'test-member-uid-004',  'USER'),
+    ('Sofía Pendiente',    'sofia.pendiente@test.com','sofia_p',     'test-pending-uid-001', 'USER'),
+    ('Diego Pendiente',    'diego.pendiente@test.com','diego_p',     'test-pending-uid-002', 'USER'),
+    ('Bloqueado Test',     'bloqueado@test.com',   'bloqueado',      'test-blocked-uid-001', 'USER')
 ON CONFLICT (email) DO NOTHING;
 
 -- ═══ GYMS ═══

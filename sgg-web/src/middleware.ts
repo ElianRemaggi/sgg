@@ -3,6 +3,15 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // Redirect root to landing page (before any Supabase client instantiation)
+  if (request.nextUrl.pathname === '/') {
+    return NextResponse.redirect(new URL('/landing', request.url))
+  }
+
+  // Public pages: skip auth entirely before any Supabase client instantiation
+  const isPublicPage = request.nextUrl.pathname.startsWith('/landing')
+  if (isPublicPage) return NextResponse.next({ request: { headers: request.headers } })
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,

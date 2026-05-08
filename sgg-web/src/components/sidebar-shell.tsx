@@ -15,7 +15,7 @@ export function SidebarShell({
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-app-gradient">
       {mobileOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/50 md:hidden"
@@ -34,7 +34,10 @@ export function SidebarShell({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center border-b px-4 py-3 md:hidden">
+        <div
+          className="flex items-center px-4 py-3 md:hidden"
+          style={{ borderBottom: '1px solid hsl(var(--border) / 0.6)' }}
+        >
           <button
             onClick={() => setMobileOpen(true)}
             className="rounded-md p-1 hover:bg-accent"

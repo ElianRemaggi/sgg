@@ -224,6 +224,7 @@ cd sgg-app && npx expo start --tunnel   # si hay problemas de red en WSL2
 - Módulo Schedule: `docs/backend/modules/06-schedule.md`
 - Módulo Platform: `docs/backend/modules/07-platform.md`
 - Frontend Web — Arquitectura y patrones: `docs/frontend/FRONTEND.md` *(nota: las rutas reales usan `/gym/[gymId]/admin/`, `/gym/[gymId]/coach/`, `/gym/[gymId]/member/` — sin grupos de ruta `(admin)`/`(coach)` como indica la doc)*
+- Frontend Web — Landing Page: `docs/frontend/sections/00-landing.md`
 
 - Frontend Web — Convenciones: `docs/frontend/FRONTEND-CONVENTIONS.md`
 - Frontend Web — Auth: `docs/frontend/sections/01-auth.md`

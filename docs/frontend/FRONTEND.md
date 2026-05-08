@@ -21,6 +21,8 @@
 ```
 src/app/
 │
+├── landing/page.tsx                 # Landing page pública (dev.drinklen.com.ar)
+│
 ├── (auth)/                          # Sin sidebar, sin auth requerida
 │   ├── login/page.tsx
 │   └── layout.tsx

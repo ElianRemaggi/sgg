@@ -9,7 +9,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export function LoginForm() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -25,7 +25,7 @@ export function LoginForm() {
       const res = await fetch(`${API_URL}/api/public/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       })
 
       const data = await res.json()
@@ -99,17 +99,17 @@ export function LoginForm() {
 
       <form onSubmit={handleEmailLogin} className="space-y-4">
         <div className="space-y-1.5">
-          <label htmlFor="email" className="block text-sm font-medium text-foreground">
-            Email
+          <label htmlFor="identifier" className="block text-sm font-medium text-foreground">
+            Email o usuario
           </label>
           <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            id="identifier"
+            type="text"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             required
             className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors"
-            placeholder="tu@email.com"
+            placeholder="tu@email.com o tu_usuario"
           />
         </div>
 
