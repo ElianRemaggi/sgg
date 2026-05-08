@@ -24,8 +24,10 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -302,6 +304,43 @@ class TrackingControllerTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/gyms/{gymId}/coach/tracking/{memberId}", gym.getId(), memberUser.getId())
                 .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("member-uid-001"))))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void completeExercise_sameExerciseDifferentDays_createsTwoRecords() throws Exception {
+        // Simular un registro de ayer insertándolo directamente
+        ExerciseCompletion yesterday = new ExerciseCompletion();
+        yesterday.setGymId(gym.getId());
+        yesterday.setAssignmentId(assignment.getId());
+        yesterday.setExerciseId(exercise1.getId());
+        yesterday.setUserId(memberUser.getId());
+        yesterday.setSessionDate(LocalDate.now().minusDays(1));
+        yesterday.setIsCompleted(true);
+        yesterday.setWeightKg(new java.math.BigDecimal("60.00"));
+        yesterday.setCompletedAt(LocalDateTime.now().minusDays(1));
+        completionRepository.save(yesterday);
+
+        // Completar hoy — debe crear un segundo registro, no pisarse
+        String json = String.format("""
+            {"assignmentId": %d, "exerciseId": %d, "weightKg": 65.0}
+            """, assignment.getId(), exercise1.getId());
+
+        mockMvc.perform(post("/api/gyms/{gymId}/member/tracking/complete", gym.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("member-uid-001")))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(json))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.weightKg").value(65.0));
+
+        // Verificar que hay 2 registros para el mismo ejercicio en días distintos
+        var records = completionRepository
+                .findByAssignmentIdAndExerciseIdAndUserIdOrderBySessionDateAsc(
+                        assignment.getId(), exercise1.getId(), memberUser.getId());
+        org.junit.jupiter.api.Assertions.assertEquals(2, records.size());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                LocalDate.now().minusDays(1), records.get(0).getSessionDate());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                LocalDate.now(), records.get(1).getSessionDate());
     }
 
     @Test
