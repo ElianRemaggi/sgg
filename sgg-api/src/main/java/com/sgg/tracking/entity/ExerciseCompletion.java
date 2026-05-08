@@ -8,6 +8,7 @@ import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -32,6 +33,9 @@ public class ExerciseCompletion {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    @Column(name = "session_date", nullable = false)
+    private LocalDate sessionDate;
+
     @Column(name = "is_completed", nullable = false)
     private Boolean isCompleted = true;
 
@@ -55,6 +59,9 @@ public class ExerciseCompletion {
     void prePersist() {
         if (completedAt == null) {
             completedAt = LocalDateTime.now();
+        }
+        if (sessionDate == null) {
+            sessionDate = LocalDate.now();
         }
     }
 }

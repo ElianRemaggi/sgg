@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Users, Settings, CalendarDays, Dumbbell, ClipboardList, LogOut, UserCircle } from 'lucide-react'
+import { Users, Settings, CalendarDays, Dumbbell, ClipboardList, LogOut, UserCircle, History } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -63,6 +63,7 @@ export function Sidebar({ gymId, gymName, role }: SidebarProps) {
 
   const memberLinks = [
     { href: `/gym/${gymId}/member/routine`, label: 'Mi Rutina', icon: Dumbbell },
+    { href: `/gym/${gymId}/member/history`, label: 'Historial', icon: History },
     { href: `/gym/${gymId}/member/schedule`, label: 'Horarios', icon: CalendarDays },
     { href: `/gym/${gymId}/member/profile`, label: 'Perfil', icon: UserCircle },
   ]
@@ -73,7 +74,7 @@ export function Sidebar({ gymId, gymName, role }: SidebarProps) {
   ) {
     const cfg = sectionConfig[color]
     return links.map(link => {
-      const isActive = pathname === link.href
+      const isActive = pathname === link.href || pathname.startsWith(link.href + '/')
       return (
         <Link
           key={link.href}

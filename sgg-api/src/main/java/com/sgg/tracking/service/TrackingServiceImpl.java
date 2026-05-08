@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -53,15 +54,18 @@ public class TrackingServiceImpl implements TrackingService {
 
         validateExerciseBelongsToAssignment(request.exerciseId(), assignment.getTemplateId());
 
-        // Upsert: find existing or create new
+        // Upsert por sesión del día: una entrada por ejercicio por día
+        LocalDate today = LocalDate.now();
         ExerciseCompletion completion = completionRepository
-                .findByAssignmentIdAndExerciseIdAndUserId(request.assignmentId(), request.exerciseId(), userId)
+                .findByAssignmentIdAndExerciseIdAndUserIdAndSessionDate(
+                        request.assignmentId(), request.exerciseId(), userId, today)
                 .orElseGet(() -> {
                     ExerciseCompletion ec = new ExerciseCompletion();
                     ec.setGymId(gymId);
                     ec.setAssignmentId(request.assignmentId());
                     ec.setExerciseId(request.exerciseId());
                     ec.setUserId(userId);
+                    ec.setSessionDate(today);
                     return ec;
                 });
 
@@ -84,7 +88,8 @@ public class TrackingServiceImpl implements TrackingService {
         Long userId = securityUtils.getCurrentUserId();
 
         completionRepository
-                .findByAssignmentIdAndExerciseIdAndUserId(request.assignmentId(), request.exerciseId(), userId)
+                .findByAssignmentIdAndExerciseIdAndUserIdAndSessionDate(
+                        request.assignmentId(), request.exerciseId(), userId, LocalDate.now())
                 .ifPresent(completion -> {
                     completion.setIsCompleted(false);
                     completionRepository.save(completion);
@@ -128,31 +133,29 @@ public class TrackingServiceImpl implements TrackingService {
                     .collect(Collectors.toSet());
         }
 
-        // Get completions
-        List<ExerciseCompletion> completions = completionRepository
-                .findByAssignmentIdAndUserIdAndIsCompletedTrue(assignment.getId(), userId);
+        // Completions del día actual para la vista de rutina (toggle hoy)
+        LocalDate today = LocalDate.now();
+        List<ExerciseCompletion> todayCompletions = completionRepository
+                .findByAssignmentIdAndUserIdAndSessionDateAndIsCompletedTrue(assignment.getId(), userId, today);
 
-        // Filter completions to only valid exercises
         Set<Long> finalValidExerciseIds = validExerciseIds;
-        List<ExerciseCompletion> validCompletions = completions.stream()
+        List<ExerciseCompletion> validTodayCompletions = todayCompletions.stream()
                 .filter(c -> finalValidExerciseIds.contains(c.getExerciseId()))
                 .toList();
 
-        long completedTotal = validCompletions.size();
-        long completedToday = validCompletions.stream()
-                .filter(c -> c.getCompletedAt().toLocalDate().equals(LocalDateTime.now().toLocalDate()))
-                .count();
+        long completedToday = validTodayCompletions.size();
+        long completedTotal = completionRepository.countCompletedByAssignment(assignment.getId(), userId);
 
         int progressPercent = totalExercises > 0
-                ? (int) Math.round((double) completedTotal / totalExercises * 100)
+                ? (int) Math.round((double) completedToday / totalExercises * 100)
                 : 0;
 
-        LocalDateTime lastActivityAt = validCompletions.stream()
+        LocalDateTime lastActivityAt = completionRepository
+                .findLastActivity(assignment.getId(), userId)
                 .map(ExerciseCompletion::getCompletedAt)
-                .max(LocalDateTime::compareTo)
                 .orElse(null);
 
-        List<ExerciseCompletionDto> completionDtos = validCompletions.stream()
+        List<ExerciseCompletionDto> completionDtos = validTodayCompletions.stream()
                 .map(mapper::toDto)
                 .toList();
 

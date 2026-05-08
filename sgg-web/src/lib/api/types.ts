@@ -196,6 +196,79 @@ export interface TrackingProgressDto {
   totalExercisesToday?: number
 }
 
+// ─── History DTOs ───
+
+export interface AssignmentHistorySummaryDto {
+  id: number
+  templateName: string
+  startsAt: string
+  endsAt: string | null
+  isActive: boolean
+  totalSessionDays: number
+  totalCompletions: number
+  lastActivityAt: string | null
+}
+
+export interface HistoryExerciseSummaryDto {
+  exerciseId: number
+  name: string
+  sessionsCount: number
+  bestWeightKg: number | null
+  avgWeightKg: number | null
+  lastWeightKg: number | null
+}
+
+export interface HistoryBlockDto {
+  id: number
+  name: string
+  dayNumber: number
+  exercises: HistoryExerciseSummaryDto[]
+}
+
+export interface HistoryStatsDto {
+  totalDistinctDays: number
+  totalCompletions: number
+  firstActivityAt: string | null
+  lastActivityAt: string | null
+}
+
+export interface AssignmentHistoryDetailDto {
+  id: number
+  templateName: string
+  startsAt: string
+  endsAt: string | null
+  isActive: boolean
+  blocks: HistoryBlockDto[]
+  stats: HistoryStatsDto
+}
+
+export interface ExerciseSessionDto {
+  sessionDate: string
+  weightKg: number | null
+  actualReps: number | null
+  notes: string | null
+  isCompleted: boolean
+  completedAt: string
+}
+
+export interface ExerciseStatsDto {
+  sessionsCount: number
+  bestWeightKg: number | null
+  avgWeightKg: number | null
+  firstWeightKg: number | null
+  lastWeightKg: number | null
+  deltaPercent: number | null
+}
+
+export interface ExerciseProgressDto {
+  exerciseId: number
+  exerciseName: string
+  blockName: string
+  dayNumber: number
+  sessions: ExerciseSessionDto[]
+  stats: ExerciseStatsDto
+}
+
 // ─── Schedule DTOs ───
 
 export interface ScheduleActivityDto {
