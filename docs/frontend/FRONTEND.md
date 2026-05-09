@@ -253,6 +253,17 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...   # solo server-side, nunca en NEXT_PUBLIC_
 
 ---
 
+## Testing
+
+Ver la guía completa en [docs/frontend/TESTING.md](./TESTING.md).
+
+Comandos rápidos:
+- `npm test` — unit/integration (Vitest)
+- `npm run test:e2e` — E2E (Playwright)
+- `npm run test:coverage` — cobertura
+
+---
+
 ## Convenciones de Nombres
 
 | Elemento | Convención | Ejemplo |

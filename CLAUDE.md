@@ -205,6 +205,13 @@ cd sgg-api && mvn test -Dtest=NombreDelTestClass#metodoEspecifico
 cd sgg-web && npm run dev       # Development
 cd sgg-web && npm run build     # Production build
 
+# Frontend web — tests
+cd sgg-web && npm test                    # Unit/integration (Vitest)
+cd sgg-web && npm run test:watch          # Watch mode
+cd sgg-web && npm run test:coverage       # Con cobertura
+cd sgg-web && npm run test:e2e            # E2E (Playwright, requiere chromium instalado)
+cd sgg-web && npx playwright install chromium  # Instalar browser para E2E
+
 # App móvil
 cd sgg-app && npx expo start
 cd sgg-app && npx expo start --tunnel   # si hay problemas de red en WSL2
@@ -223,7 +230,8 @@ cd sgg-app && npx expo start --tunnel   # si hay problemas de red en WSL2
 - Módulo Tracking: `docs/backend/modules/05-tracking.md`
 - Módulo Schedule: `docs/backend/modules/06-schedule.md`
 - Módulo Platform: `docs/backend/modules/07-platform.md`
-- Frontend Web — Arquitectura y patrones: `docs/frontend/FRONTEND.md` *(nota: las rutas reales usan `/gym/[gymId]/admin/`, `/gym/[gymId]/coach/`, `/gym/[gymId]/member/` — sin grupos de ruta `(admin)`/`(coach)` como indica la doc)*
+- Frontend Web — Arquitectura y patrones: `docs/frontend/FRONTEND.md`
+- Frontend Web — Testing: `docs/frontend/TESTING.md` *(nota: las rutas reales usan `/gym/[gymId]/admin/`, `/gym/[gymId]/coach/`, `/gym/[gymId]/member/` — sin grupos de ruta `(admin)`/`(coach)` como indica la doc)*
 - Frontend Web — Landing Page: `docs/frontend/sections/00-landing.md`
 
 - Frontend Web — Convenciones: `docs/frontend/FRONTEND-CONVENTIONS.md`
