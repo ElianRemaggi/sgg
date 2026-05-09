@@ -16,8 +16,6 @@ import {
   X,
   ChevronRight,
   Dumbbell,
-  Zap,
-  LayoutDashboard,
 } from 'lucide-react'
 
 const anton = Anton({
