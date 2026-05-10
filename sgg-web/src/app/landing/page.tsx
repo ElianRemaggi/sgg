@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { Anton, Outfit } from 'next/font/google'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -11,7 +12,6 @@ import {
   Shield,
   Building2,
   ArrowRight,
-  CheckCircle,
   Menu,
   X,
   ChevronRight,
@@ -465,93 +465,76 @@ export default function LandingPage() {
               </p>
             </div>
 
-            {/* Floating UI mockups */}
+            {/* Floating UI screenshots */}
             <div className="relative hidden lg:block h-[540px]">
 
-              {/* Dashboard card */}
+              {/* Main screenshot — Admin Miembros */}
               <div
                 data-anim="float-card"
                 className="float-a absolute top-0 left-6 right-0 rounded-2xl overflow-hidden"
-                style={{ background: 'hsl(222 24% 14%)', border: '1px solid rgba(184,180,255,0.1)', boxShadow: '0 40px 100px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03)' }}
+                style={{ border: '1px solid rgba(184,180,255,0.15)', boxShadow: '0 40px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03)' }}
               >
-                <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: '1px solid rgba(184,180,255,0.07)' }}>
+                <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'hsl(222 24% 11%)', borderBottom: '1px solid rgba(184,180,255,0.08)' }}>
                   <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
                   <div className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]" />
                   <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
                   <span className="ml-3 text-xs font-mono" style={{ color: 'hsl(247 10% 35%)' }}>sgg · panel admin</span>
                 </div>
-                <div className="p-5">
-                  <div className="flex items-center justify-between mb-5">
-                    <div>
-                      <div className="text-xs uppercase tracking-wider mb-1" style={{ color: 'hsl(247 10% 45%)' }}>Miembros Activos</div>
-                      <div className="font-display text-5xl gradient-primary" style={{ fontFamily: 'var(--font-display)' }}>12</div>
-                    </div>
-                    <span className="text-xs px-3 py-1.5 rounded-full font-medium" style={{ color: 'hsl(157 78% 52%)', background: 'rgba(53,232,132,0.1)', border: '1px solid rgba(53,232,132,0.2)' }}>
-                      +3 este mes
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    {[
-                      { name: 'Martín García', plan: 'Premium', status: 'Activo', active: true },
-                      { name: 'Laura Pérez', plan: 'Básico', status: 'Activo', active: true },
-                      { name: 'Carlos Ruiz', plan: 'Premium', status: 'Pendiente', active: false },
-                      { name: 'Sofía Méndez', plan: 'Premium', status: 'Activo', active: true },
-                    ].map((m) => (
-                      <div key={m.name} className="flex items-center gap-3 py-2.5" style={{ borderBottom: '1px solid rgba(184,180,255,0.05)' }}>
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: 'rgba(184,180,255,0.1)', color: 'hsl(241 100% 88%)' }}>
-                          {m.name[0]}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm truncate" style={{ color: 'hsl(234 20% 80%)' }}>{m.name}</div>
-                          <div className="text-xs" style={{ color: 'hsl(247 10% 40%)' }}>{m.plan}</div>
-                        </div>
-                        <span className="text-xs font-medium" style={{ color: m.active ? 'hsl(157 78% 52%)' : 'hsl(247 10% 45%)' }}>
-                          {m.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <Image
+                  src="/screenshots/admin-members.jpg"
+                  unoptimized
+                  alt="Panel de administración de miembros"
+                  width={1280}
+                  height={800}
+                  className="w-full h-auto"
+                  style={{ display: 'block', maxHeight: '380px', objectFit: 'cover', objectPosition: 'top' }}
+                />
               </div>
 
-              {/* Rutina card */}
+              {/* Small screenshot — Mi Rutina */}
               <div
                 data-anim="float-card"
-                className="float-b absolute bottom-16 -left-4 rounded-2xl p-5 w-56"
-                style={{ background: 'hsl(222 24% 14%)', border: '1px solid rgba(184,180,255,0.18)', boxShadow: '0 20px 60px rgba(0,0,0,0.4), 0 0 40px rgba(184,180,255,0.05)' }}
+                className="float-b absolute bottom-16 -left-4 rounded-2xl overflow-hidden w-56"
+                style={{ border: '1px solid rgba(184,180,255,0.2)', boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(184,180,255,0.06)' }}
               >
-                <div className="text-xs uppercase tracking-wider font-semibold mb-3" style={{ color: 'hsl(241 100% 88%)' }}>
-                  Rutina Asignada
+                <div className="flex items-center gap-1.5 px-3 py-2" style={{ background: 'hsl(222 24% 11%)', borderBottom: '1px solid rgba(184,180,255,0.08)' }}>
+                  <div className="w-2 h-2 rounded-full bg-[#FF5F57]" />
+                  <div className="w-2 h-2 rounded-full bg-[#FFBD2E]" />
+                  <div className="w-2 h-2 rounded-full bg-[#28C840]" />
+                  <span className="ml-2 text-[10px] font-mono" style={{ color: 'hsl(247 10% 35%)' }}>mi rutina</span>
                 </div>
-                <div className="font-semibold text-sm mb-3" style={{ color: 'hsl(234 20% 90%)' }}>Full Body Power</div>
-                <div className="space-y-2">
-                  {['Sentadilla 4×8', 'Press Banca 3×10', 'Peso Muerto 3×6'].map((e) => (
-                    <div key={e} className="flex items-center gap-2 text-xs" style={{ color: 'hsl(247 10% 50%)' }}>
-                      <CheckCircle size={11} color="hsl(157 78% 52%)" />
-                      {e}
-                    </div>
-                  ))}
-                </div>
+                <Image
+                  src="/screenshots/member-routine.jpg"
+                  unoptimized
+                  alt="Vista de rutina del miembro"
+                  width={640}
+                  height={400}
+                  className="w-full h-auto"
+                  style={{ display: 'block', maxHeight: '160px', objectFit: 'cover', objectPosition: 'top' }}
+                />
               </div>
 
-              {/* Adherencia card */}
+              {/* Small screenshot — Historial */}
               <div
                 data-anim="float-card"
-                className="float-c absolute bottom-4 right-2 rounded-2xl p-5 w-44"
-                style={{ background: 'hsl(222 24% 14%)', border: '1px solid rgba(184,180,255,0.08)', boxShadow: '0 20px 50px rgba(0,0,0,0.4)' }}
+                className="float-c absolute bottom-4 right-2 rounded-2xl overflow-hidden w-52"
+                style={{ border: '1px solid rgba(184,180,255,0.1)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
               >
-                <div className="text-xs mb-1" style={{ color: 'hsl(247 10% 45%)' }}>Adherencia</div>
-                <div className="font-display text-4xl" style={{ fontFamily: 'var(--font-display)', color: 'hsl(190 100% 50%)' }}>87%</div>
-                <div className="text-xs mt-1 mb-3" style={{ color: 'hsl(247 10% 32%)' }}>esta semana</div>
-                <div className="flex items-end gap-1 h-8">
-                  {[65, 78, 70, 90, 82, 88, 87].map((v, i) => (
-                    <div
-                      key={i}
-                      className="flex-1 rounded-sm"
-                      style={{ height: `${v}%`, background: `rgba(0,245,255,${0.2 + (i / 6) * 0.8})` }}
-                    />
-                  ))}
+                <div className="flex items-center gap-1.5 px-3 py-2" style={{ background: 'hsl(222 24% 11%)', borderBottom: '1px solid rgba(184,180,255,0.08)' }}>
+                  <div className="w-2 h-2 rounded-full bg-[#FF5F57]" />
+                  <div className="w-2 h-2 rounded-full bg-[#FFBD2E]" />
+                  <div className="w-2 h-2 rounded-full bg-[#28C840]" />
+                  <span className="ml-2 text-[10px] font-mono" style={{ color: 'hsl(247 10% 35%)' }}>historial</span>
                 </div>
+                <Image
+                  src="/screenshots/member-history.jpg"
+                  unoptimized
+                  alt="Historial de rutinas del miembro"
+                  width={640}
+                  height={400}
+                  className="w-full h-auto"
+                  style={{ display: 'block', maxHeight: '150px', objectFit: 'cover', objectPosition: 'top' }}
+                />
               </div>
             </div>
           </div>
@@ -621,6 +604,64 @@ export default function LandingPage() {
                 </div>
               )
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── PREVIEW SCREENSHOTS ─── */}
+      <section data-section="preview" className="py-28 relative overflow-hidden" style={{ background: 'hsl(222 26% 10%)' }}>
+        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(184,180,255,0.2), transparent)' }} />
+        <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(184,180,255,0.2), transparent)' }} />
+
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="mb-16 max-w-2xl">
+            <p className="text-xs uppercase tracking-widest font-semibold mb-4" style={{ color: 'hsl(241 100% 88%)' }}>
+              Vista previa
+            </p>
+            <h2
+              data-anim="section-title"
+              className="font-display leading-none"
+              style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(3rem, 7vw, 6rem)' }}
+            >
+              ASÍ SE
+              <br />
+              <span className="gradient-primary">VE EN VIVO</span>
+            </h2>
+            <p className="mt-6 text-base leading-relaxed" style={{ color: 'hsl(247 10% 45%)' }}>
+              Capturas reales del sistema. Sin mockups, sin diseños ficticios.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {[
+              { src: '/screenshots/admin-members.jpg', label: 'Admin · Gestión de miembros', alt: 'Panel de administración de miembros' },
+              { src: '/screenshots/coach-templates.jpg', label: 'Coach · Plantillas de rutinas', alt: 'Plantillas de rutina del coach' },
+              { src: '/screenshots/member-routine.jpg', label: 'Miembro · Mi rutina activa', alt: 'Vista de rutina del miembro' },
+              { src: '/screenshots/member-history.jpg', label: 'Miembro · Historial de progreso', alt: 'Historial de rutinas del miembro' },
+            ].map((item) => (
+              <div
+                key={item.src}
+                data-anim="feature-card"
+                className="rounded-2xl overflow-hidden"
+                style={{ border: '1px solid rgba(184,180,255,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}
+              >
+                <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'hsl(222 24% 11%)', borderBottom: '1px solid rgba(184,180,255,0.07)' }}>
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
+                  <span className="ml-3 text-xs font-mono" style={{ color: 'hsl(247 10% 40%)' }}>{item.label}</span>
+                </div>
+                <Image
+                  src={item.src}
+                  alt={item.alt}
+                  unoptimized
+                  width={1280}
+                  height={800}
+                  className="w-full h-auto"
+                  style={{ display: 'block' }}
+                />
+              </div>
+            ))}
           </div>
         </div>
       </section>
