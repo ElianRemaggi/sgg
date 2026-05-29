@@ -5,7 +5,6 @@ import { ChevronRight } from 'lucide-react-native'
 import { apiClient, ApiError } from '@/lib/api'
 import { queryKeys } from '@/lib/queryKeys'
 import { useGymStore } from '@/store/gymStore'
-import { Screen } from '@/components/ui/Screen'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorScreen } from '@/components/ui/ErrorScreen'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -43,8 +42,7 @@ export default function AssignmentDetailScreen() {
   const { stats } = detail
 
   return (
-    <Screen>
-      <ScrollView className="flex-1 bg-slate-50 dark:bg-slate-950" contentContainerClassName="p-4 gap-4">
+    <ScrollView className="flex-1 bg-slate-50 dark:bg-slate-950" contentContainerClassName="p-4 gap-4">
         {/* Header info */}
         <View>
           <Text className="text-lg font-bold text-slate-900 dark:text-slate-50">{detail.templateName}</Text>
@@ -94,7 +92,6 @@ export default function AssignmentDetailScreen() {
           </View>
         ))}
       </ScrollView>
-    </Screen>
   )
 }
 
@@ -164,8 +161,7 @@ function StatItem({ label, value }: { label: string; value: string }) {
 
 function DetailSkeleton() {
   return (
-    <Screen>
-      <View className="flex-1 bg-slate-50 dark:bg-slate-950 p-4 gap-4">
+    <View className="flex-1 bg-slate-50 dark:bg-slate-950 p-4 gap-4">
         <Skeleton className="h-6 w-48" />
         <Skeleton className="h-3 w-32" />
         <View className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 gap-3">
@@ -192,7 +188,6 @@ function DetailSkeleton() {
             </View>
           </View>
         ))}
-      </View>
-    </Screen>
+    </View>
   )
 }

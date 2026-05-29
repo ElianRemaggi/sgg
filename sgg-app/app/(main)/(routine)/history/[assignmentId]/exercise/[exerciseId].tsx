@@ -7,7 +7,6 @@ import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg'
 import { apiClient, ApiError } from '@/lib/api'
 import { queryKeys } from '@/lib/queryKeys'
 import { useGymStore } from '@/store/gymStore'
-import { Screen } from '@/components/ui/Screen'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorScreen } from '@/components/ui/ErrorScreen'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -59,8 +58,7 @@ export default function ExerciseProgressScreen() {
     .sort((a, b) => a.sessionDate.localeCompare(b.sessionDate))
 
   return (
-    <Screen>
-      <ScrollView className="flex-1 bg-slate-50 dark:bg-slate-950" contentContainerClassName="p-4 gap-4">
+    <ScrollView className="flex-1 bg-slate-50 dark:bg-slate-950" contentContainerClassName="p-4 gap-4">
         {/* Exercise info */}
         <View className="gap-0.5">
           <Text className="text-xs text-slate-400 dark:text-slate-500">{progress.blockName} · Día {progress.dayNumber}</Text>
@@ -103,7 +101,6 @@ export default function ExerciseProgressScreen() {
           )}
         </View>
       </ScrollView>
-    </Screen>
   )
 }
 
@@ -258,8 +255,7 @@ function StatCard({
 
 function ProgressSkeleton() {
   return (
-    <Screen>
-      <View className="flex-1 bg-slate-50 dark:bg-slate-950 p-4 gap-4">
+    <View className="flex-1 bg-slate-50 dark:bg-slate-950 p-4 gap-4">
         <Skeleton className="h-3 w-32" />
         <Skeleton className="h-6 w-48" />
         <View className="flex-row gap-2">
@@ -282,7 +278,6 @@ function ProgressSkeleton() {
             ))}
           </View>
         </View>
-      </View>
-    </Screen>
+    </View>
   )
 }

@@ -1,6 +1,13 @@
 import { Stack } from 'expo-router'
+import { useColorScheme } from 'nativewind'
 
 export default function RoutineLayout() {
+  const { colorScheme } = useColorScheme()
+  const isDark = colorScheme === 'dark'
+
+  const headerBg = isDark ? '#0f172a' : '#ffffff'
+  const headerTint = isDark ? '#f8fafc' : '#0f172a'
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
@@ -11,8 +18,8 @@ export default function RoutineLayout() {
           headerShown: true,
           title: 'Detalle de rutina',
           headerBackTitle: 'Historial',
-          headerTintColor: '#0f172a',
-          headerStyle: { backgroundColor: '#ffffff' },
+          headerTintColor: headerTint,
+          headerStyle: { backgroundColor: headerBg },
           headerShadowVisible: false,
         }}
       />
@@ -22,8 +29,8 @@ export default function RoutineLayout() {
           headerShown: true,
           title: 'Progresión',
           headerBackTitle: 'Rutina',
-          headerTintColor: '#0f172a',
-          headerStyle: { backgroundColor: '#ffffff' },
+          headerTintColor: headerTint,
+          headerStyle: { backgroundColor: headerBg },
           headerShadowVisible: false,
         }}
       />
