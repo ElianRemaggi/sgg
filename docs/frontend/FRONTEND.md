@@ -18,122 +18,133 @@
 
 ## Estructura de Rutas
 
+> **Nota:** Las rutas usan carpetas planas (sin grupos de ruta `(admin)`/`(coach)`). El path real es `/gym/[gymId]/admin/`, `/gym/[gymId]/coach/`, `/gym/[gymId]/member/`.
+
 ```
 src/app/
 │
+├── page.tsx                         # Redirect a /landing
 ├── landing/page.tsx                 # Landing page pública (dev.drinklen.com.ar)
+├── privacy/page.tsx                 # Política de privacidad (pública)
 │
 ├── (auth)/                          # Sin sidebar, sin auth requerida
-│   ├── login/page.tsx
+│   ├── login/
+│   │   ├── page.tsx
+│   │   └── login-form.tsx           # Client Component
+│   ├── register/
+│   │   ├── page.tsx
+│   │   └── register-form.tsx        # Client Component
 │   └── layout.tsx
 │
 ├── (dashboard)/                     # Con sidebar, requiere auth
-│   ├── layout.tsx                   # Shell: sidebar + gym selector
+│   ├── layout.tsx                   # Shell: sidebar
 │   │
-│   ├── select-gym/page.tsx          # Elegir gym activo si el user tiene varios
+│   ├── select-gym/page.tsx          # Elegir gym activo
 │   │
-│   ├── gym/[gymId]/
-│   │   ├── layout.tsx               # GymProvider: carga gym, verifica status
-│   │   │
-│   │   ├── (admin)/                 # Rutas de ADMIN | ADMIN_COACH
-│   │   │   ├── members/
-│   │   │   │   ├── page.tsx         # Lista de miembros con filtros
-│   │   │   │   └── [memberId]/page.tsx
-│   │   │   ├── coaches/page.tsx
-│   │   │   ├── schedule/page.tsx
-│   │   │   └── settings/page.tsx
-│   │   │
-│   │   └── (coach)/                 # Rutas de COACH | ADMIN_COACH
-│   │       ├── my-members/page.tsx
-│   │       ├── templates/
-│   │       │   ├── page.tsx
-│   │       │   ├── new/page.tsx
-│   │       │   └── [templateId]/edit/page.tsx
-│   │       ├── assign/page.tsx
-│   │       └── progress/[memberId]/page.tsx
-│   │
-│   └── platform/                    # Rutas de SUPERADMIN únicamente
-│       ├── layout.tsx               # Verifica platform_role = SUPERADMIN
-│       ├── gyms/
-│       │   ├── page.tsx
-│       │   ├── new/page.tsx
-│       │   └── [gymId]/page.tsx
-│       └── admins/page.tsx
+│   └── gym/[gymId]/
+│       ├── layout.tsx               # GymProvider: carga gym, verifica status
+│       │
+│       ├── admin/                   # Rutas de ADMIN | ADMIN_COACH
+│       │   ├── members/page.tsx     # Lista de miembros con filtros
+│       │   ├── schedule/page.tsx
+│       │   └── settings/page.tsx
+│       │
+│       ├── coach/                   # Rutas de COACH | ADMIN_COACH
+│       │   ├── templates/
+│       │   │   ├── page.tsx
+│       │   │   ├── new/page.tsx
+│       │   │   └── [templateId]/edit/page.tsx
+│       │   ├── assign/page.tsx
+│       │   └── history/
+│       │       └── [memberId]/
+│       │           ├── page.tsx                                         # Historial del miembro (lista)
+│       │           ├── [assignmentId]/page.tsx                          # Detalle de asignación
+│       │           └── [assignmentId]/exercises/[exerciseId]/page.tsx   # Progresión de ejercicio
+│       │
+│       └── member/                  # Rutas de MEMBER (y ADMIN/COACH para su propia rutina)
+│           ├── routine/page.tsx     # Mi rutina del día — tracking con observaciones
+│           ├── history/
+│           │   ├── page.tsx                                         # Historial (lista de asignaciones)
+│           │   ├── [assignmentId]/page.tsx                          # Detalle de asignación
+│           │   └── [assignmentId]/exercises/[exerciseId]/page.tsx   # Progresión de ejercicio
+│           ├── schedule/page.tsx
+│           └── profile/page.tsx
 │
-├── api/                             # Route Handlers (BFF / proxy a Spring)
-│   └── [...proxy]/route.ts          # Opcional: proxy transparente con JWT injection
+├── api/                             # Route Handlers (BFF)
+│   └── auth/
+│       └── native/route.ts          # POST: guarda JWT nativo en httpOnly cookie; DELETE: borra cookie
 │
-└── middleware.ts                    # Auth check global
+└── middleware.ts                    # Auth check global (nativo + Supabase)
 ```
 
 ---
 
 ## Autenticación
 
+La app soporta dos mecanismos de auth en paralelo:
+- **Nativo** (email/password via backend propio): el JWT se guarda en cookie httpOnly `sgg-token` via el Route Handler `/api/auth/native`
+- **OAuth Google** (Supabase): sesión en cookies de Supabase SSR
+
+### Route Handler: `/api/auth/native`
+
+```typescript
+// POST: guarda el JWT nativo en cookie httpOnly (24h)
+// DELETE: borra la cookie (logout nativo)
+export async function POST(request: NextRequest) {
+  const { token } = await request.json()
+  const response = NextResponse.json({ success: true })
+  response.cookies.set('sgg-token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24,
+  })
+  return response
+}
+```
+
 ### middleware.ts
 
 ```typescript
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next()
+  // / → /landing (redirect antes de instanciar Supabase)
+  if (pathname === '/') return redirect('/landing')
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { /* getter/setter de cookies */ } }
-  )
+  // /landing, /privacy → público, sin verificación
+  if (isPublicPage) return NextResponse.next()
 
+  // Auth dual: nativo (cookie) O Supabase session
+  const nativeToken = request.cookies.get('sgg-token')?.value
   const { data: { session } } = await supabase.auth.getSession()
+  const isAuthenticated = !!nativeToken || !!session
 
-  // Rutas protegidas: redirigir a login si no hay sesión
-  if (!session && request.nextUrl.pathname.startsWith('/gym')) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register')
 
-  // Ruta platform: verificar platform_role (se lee del user en BD)
-  // Esta verificación más granular se hace en el layout de /platform
+  if (!isAuthenticated && !isAuthPage) return redirect('/login')
+  if (isAuthenticated && isAuthPage)  return redirect('/select-gym')
 
   return response
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|login).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/|screenshots/).*)',],
 }
 ```
 
 ### Supabase Clients
 
 ```typescript
-// lib/supabase/server.ts — para Server Components y Route Handlers
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-
+// lib/supabase/server.ts — Server Components y Route Handlers
 export function createClient() {
-  const cookieStore = cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name) { return cookieStore.get(name)?.value },
-        set(name, value, options) { cookieStore.set({ name, value, ...options }) },
-        remove(name, options) { cookieStore.set({ name, value: '', ...options }) },
-      },
-    }
-  )
+  return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    cookies: { get, set, remove },  // lee/escribe cookies del request
+  })
 }
 
-// lib/supabase/client.ts — para Client Components
-import { createBrowserClient } from '@supabase/ssr'
-
+// lib/supabase/client.ts — Client Components
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  return createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 }
 ```
 
@@ -141,24 +152,25 @@ export function createClient() {
 
 ## API Client
 
+El `apiClient` usa el token nativo (`sgg-token`) si existe; si no, el access token de Supabase. Siempre `cache: 'no-store'`.
+
 ```typescript
-// lib/api/client.ts
-import { createClient } from '@/lib/supabase/server'
+// lib/api/client.ts (Server Components / Server Actions)
+export async function apiClient<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const nativeToken = cookies().get('sgg-token')?.value
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL
-
-export async function apiClient<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  let token = nativeToken
+  if (!token) {
+    const { data: { session } } = await createClient().auth.getSession()
+    token = session?.access_token
+  }
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session?.access_token}`,
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...options.headers,
     },
   })

@@ -6,14 +6,18 @@
 
 ## Stack
 
-- React Native con Expo SDK 51+
+- React Native con Expo SDK 54
 - TypeScript
-- Expo Router (file-based routing, como Next.js App Router)
-- Supabase Auth (`@supabase/supabase-js`)
-- `expo-secure-store` (almacenamiento seguro de tokens)
-- React Query (`@tanstack/react-query`) para fetching y cache
-- Zustand (estado global liviano)
-- NativeWind (Tailwind para React Native)
+- Expo Router v6 (file-based routing, como Next.js App Router)
+- Supabase Auth (`@supabase/supabase-js`) — solo para OAuth con Google
+- Auth nativa: email/password con JWT HS384 vía `/api/public/auth/login` (guardado en SecureStore como `sgg.jwt`)
+- `expo-secure-store` (almacenamiento seguro de tokens y estado persistido)
+- React Query v5 (`@tanstack/react-query`) para fetching y cache
+- Zustand v5 (estado global: gym activo y tema)
+- NativeWind v4 (Tailwind para React Native)
+- `react-hook-form` + `@hookform/resolvers/zod` para formularios
+- `lucide-react-native` para íconos
+- `react-native-svg` para gráficos SVG (progresión de ejercicios)
 
 ---
 
@@ -22,63 +26,115 @@
 ```
 sgg-app/
 ├── app/
-│   ├── _layout.tsx                  # Root: AuthProvider + QueryClient
+│   ├── _layout.tsx                  # Root: SafeAreaProvider + QueryProvider + ToastProvider + BootstrapGate + ThemeController
+│   ├── auth/
+│   │   └── callback.tsx             # Deep link callback de OAuth (Google)
 │   │
 │   ├── (auth)/                      # Sin tab bar
 │   │   ├── _layout.tsx              # Stack navigator
 │   │   ├── login.tsx
 │   │   └── register.tsx
 │   │
-│   └── (main)/                      # Con tab bar (solo si tiene gym activo)
-│       ├── _layout.tsx              # Tab navigator
+│   ├── select-gym.tsx               # Pantalla fullscreen de selección/búsqueda de gym
+│   │
+│   └── (main)/                      # Con tab bar (solo si selectedGymId !== null)
+│       ├── _layout.tsx              # Tab navigator — redirige a select-gym si no hay gym activo
 │       │
-│       ├── (routine)/               # Tab: Mi Rutina 🏋️
-│       │   ├── _layout.tsx
-│       │   ├── index.tsx            # Rutina activa del día
-│       │   └── history.tsx
+│       ├── (routine)/               # Tab: Rutina 🏋️
+│       │   ├── _layout.tsx          # Stack: index, history, history/[id], history/[id]/exercise/[id]
+│       │   ├── index.tsx            # Rutina activa del día (con selector de día)
+│       │   ├── history.tsx          # Lista de asignaciones pasadas
+│       │   └── history/
+│       │       └── [assignmentId]/
+│       │           ├── index.tsx    # Detalle de rutina (stats + ejercicios por bloque)
+│       │           └── exercise/
+│       │               └── [exerciseId].tsx  # Progresión de un ejercicio (gráfico SVG)
 │       │
-│       ├── (progress)/              # Tab: Progreso 📊
-│       │   └── index.tsx
+│       ├── (progress)/              # Tab: Historial 📊
+│       │   └── index.tsx            # Progreso actual + link a historial
 │       │
-│       ├── (gym)/                   # Tab: Mi Gym 🏢
+│       ├── (gym)/                   # Tab: Mi gym 🏢
 │       │   ├── index.tsx            # Info del gym
 │       │   └── schedule.tsx         # Horarios
 │       │
 │       └── (profile)/              # Tab: Perfil 👤
-│           └── index.tsx            # Perfil + selector de gym + logout
+│           └── index.tsx            # Perfil + selector de tema + join gym + cerrar sesión + eliminar cuenta
 │
 ├── components/
-│   ├── ui/                          # Componentes reutilizables (Button, Card, etc.)
-│   ├── routine/
-│   │   ├── ExerciseItem.tsx         # Item de ejercicio con toggle
-│   │   ├── BlockSection.tsx         # Sección de bloque (Día 1, Día 2)
-│   │   └── ProgressRing.tsx         # Anillo de progreso
-│   └── tracking/
-│       └── CompletionToggle.tsx     # Botón check/uncheck
+│   ├── ui/                          # Componentes reutilizables
+│   │   ├── Button.tsx
+│   │   ├── Card.tsx
+│   │   ├── Badge.tsx
+│   │   ├── EmptyState.tsx
+│   │   ├── ErrorScreen.tsx
+│   │   ├── Input.tsx
+│   │   ├── Screen.tsx               # Wrapper con SafeAreaView
+│   │   └── Skeleton.tsx
+│   └── routine/
+│       ├── ExerciseRow.tsx          # Fila de ejercicio con toggle y entrada de datos (peso/reps/notas)
+│       ├── BlockSection.tsx         # Sección de bloque con lista de ejercicios
+│       ├── ProgressRing.tsx         # Anillo SVG de progreso (tab Progreso)
+│       └── RoutineProgressBar.tsx   # Barra de progreso + selector de día (tab Rutina)
 │
 ├── lib/
 │   ├── supabase.ts                  # Cliente Supabase + SecureStore adapter
-│   ├── api.ts                       # API client con JWT automático
+│   ├── api.ts                       # API client con JWT automático (nativo o Supabase)
+│   ├── auth.ts                      # nativeLogin, nativeRegister, syncSupabaseUser, navigateAfterAuth, logout
 │   └── queryKeys.ts                 # Claves para React Query
 │
-├── hooks/
-│   ├── useAuth.ts                   # Sesión de Supabase, user actual
-│   ├── useGym.ts                    # Gym activo (de Zustand store)
-│   └── useRoutine.ts                # Rutina activa del member
-│
 ├── store/
-│   └── gymStore.ts                  # Zustand: gym activo seleccionado
+│   ├── gymStore.ts                  # Zustand: gym activo (selectedGymId: string | null)
+│   └── themeStore.ts                # Zustand: modo de tema ('system' | 'light' | 'dark')
+│
+├── providers/
+│   ├── QueryProvider.tsx            # React Query client provider
+│   └── ToastProvider.tsx            # Toast global (useToast hook)
 │
 ├── types/
 │   └── api.ts                       # Tipos que espeja los DTOs del backend
 │
-├── app.json
+├── tests/
+│   ├── msw/
+│   │   ├── handlers.ts              # Mock handlers para tests
+│   │   └── server.ts
+│   └── utils/
+│       └── render.tsx               # Render helper con providers
+│
+├── app.config.js                    # Configuración Expo (scheme: "sgg")
 └── eas.json
 ```
 
 ---
 
 ## Autenticación
+
+La app soporta dos métodos de auth:
+
+### 1. Auth Nativa (principal)
+Email/password via backend propio. El JWT se almacena en SecureStore bajo la clave `sgg.jwt`.
+
+```typescript
+// lib/auth.ts
+export async function nativeLogin(usernameOrEmail: string, password: string) {
+  const res = await apiClient<ApiResponse<NativeLoginResponse>>(
+    '/api/public/auth/login',
+    { method: 'POST', body: JSON.stringify({ identifier: usernameOrEmail, password }) }
+  )
+  await SecureStore.setItemAsync('sgg.jwt', res.data.token)
+  return res.data
+}
+
+export async function nativeRegister(payload: NativeRegisterRequest) {
+  await apiClient('/api/public/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return nativeLogin(payload.email, payload.password)
+}
+```
+
+### 2. OAuth con Google (Supabase)
+Usa `expo-auth-session` + `WebBrowser.openAuthSessionAsync`. Después del OAuth se llama `syncSupabaseUser()` para sincronizar con el backend.
 
 ### lib/supabase.ts
 
@@ -106,163 +162,87 @@ export const supabase = createClient(
 )
 ```
 
-### hooks/useAuth.ts
-
-```typescript
-import { useEffect, useState } from 'react'
-import { Session } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
-
-export function useAuth() {
-  const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => setSession(session)
-    )
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  return { session, loading, user: session?.user }
-}
-```
-
 ---
 
 ## API Client
 
 ```typescript
 // lib/api.ts
-import { supabase } from './supabase'
+// Adjunta automáticamente el JWT nativo (sgg.jwt) o el token de Supabase
+export async function apiClient<T>(path: string, options: RequestInit = {}): Promise<T> {
+  // Primero intenta el JWT nativo; si no hay, usa Supabase
+  const nativeJwt = await SecureStore.getItemAsync('sgg.jwt')
+  let token: string | null = nativeJwt
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL!
-
-export class ApiError extends Error {
-  constructor(public status: number, public body: unknown) {
-    super(`API Error ${status}`)
+  if (!token) {
+    const { data: { session } } = await supabase.auth.getSession()
+    token = session?.access_token ?? null
   }
-}
-
-export async function apiClient<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const { data: { session } } = await supabase.auth.getSession()
 
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(session ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...options.headers,
     },
   })
 
-  if (!response.ok) {
-    throw new ApiError(response.status, await response.json())
-  }
-
+  if (!response.ok) throw new ApiError(response.status, await response.json())
   if (response.status === 204) return null as T
   return response.json()
 }
+```
+
+Las respuestas del backend están envueltas en `ApiResponse<T>`:
+```typescript
+interface ApiResponse<T> { data: T }
 ```
 
 ---
 
 ## Estado Global con Zustand
 
+### gymStore.ts — Gym activo
 ```typescript
-// store/gymStore.ts
-import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
-import * as SecureStore from 'expo-secure-store'
-
-interface GymStore {
-  activeGymId: number | null
-  activeGymName: string | null
-  setActiveGym: (id: number, name: string) => void
-  clearActiveGym: () => void
+interface GymState {
+  selectedGymId: string | null   // string, no number
+  setGym: (gymId: string) => void
+  clearGym: () => void
 }
+// Persistido en SecureStore bajo la clave 'sgg.gym'
+```
 
-export const useGymStore = create<GymStore>()(
-  persist(
-    (set) => ({
-      activeGymId: null,
-      activeGymName: null,
-      setActiveGym: (id, name) => set({ activeGymId: id, activeGymName: name }),
-      clearActiveGym: () => set({ activeGymId: null, activeGymName: null }),
-    }),
-    {
-      name: 'gym-store',
-      storage: createJSONStorage(() => ({
-        getItem: SecureStore.getItemAsync,
-        setItem: SecureStore.setItemAsync,
-        removeItem: SecureStore.deleteItemAsync,
-      })),
-    }
-  )
-)
+### themeStore.ts — Tema de la app
+```typescript
+type ThemeMode = 'system' | 'light' | 'dark'
+interface ThemeState {
+  mode: ThemeMode
+  setMode: (mode: ThemeMode) => void
+}
+// Persistido en SecureStore bajo la clave 'sgg.theme'
 ```
 
 ---
 
-## Pantalla Principal: Rutina Activa
+## Bootstrap y navegación inicial
 
-```typescript
-// app/(main)/(routine)/index.tsx
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api'
-import { useGymStore } from '@/store/gymStore'
+`_layout.tsx` usa un `BootstrapGate` que:
+1. Busca `sgg.jwt` en SecureStore y sesión de Supabase
+2. Si no hay nada → redirige a `/(auth)/login`
+3. Si hay sesión → llama `navigateAfterAuth()` para resolver el gym activo
+4. Tiene un timeout global de 12s como fallback duro a login
+5. Muestra un overlay de carga con el paso actual ("Verificando sesión...", "Cargando membresías...")
 
-export default function RoutineScreen() {
-  const { activeGymId } = useGymStore()
-  const queryClient = useQueryClient()
-
-  const { data: routine, isLoading } = useQuery({
-    queryKey: ['routine', activeGymId],
-    queryFn: () => apiClient(`/api/gyms/${activeGymId}/member/routine`),
-    enabled: !!activeGymId,
-  })
-
-  const completeMutation = useMutation({
-    mutationFn: ({ assignmentId, exerciseId }: { assignmentId: number, exerciseId: number }) =>
-      apiClient(`/api/gyms/${activeGymId}/member/tracking/complete`, {
-        method: 'POST',
-        body: JSON.stringify({ assignmentId, exerciseId }),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['routine', activeGymId] })
-    },
-  })
-
-  if (isLoading) return <LoadingScreen />
-  if (!routine) return <NoRoutineScreen />
-
-  return (
-    <ScrollView>
-      {routine.blocks.map(block => (
-        <BlockSection
-          key={block.id}
-          block={block}
-          onComplete={(exerciseId) =>
-            completeMutation.mutate({
-              assignmentId: routine.assignmentId,
-              exerciseId,
-            })
-          }
-        />
-      ))}
-    </ScrollView>
-  )
-}
+`navigateAfterAuth()`:
 ```
+membresías activas === 0  → /select-gym
+membresías activas === 1  → setGym(id) → /(main)/(routine)
+membresías activas > 1    → /select-gym
+gym ya seleccionado y válido → /(main)/(routine)
+```
+
+`ThemeController` aplica el modo de tema (del `themeStore`) a NativeWind al arrancar.
 
 ---
 
@@ -270,18 +250,16 @@ export default function RoutineScreen() {
 
 ```
 App abre
-  └── _layout.tsx verifica sesión
+  └── _layout.tsx (BootstrapGate)
         ├── Sin sesión → (auth)/login
-        └── Con sesión
-              └── ¿Tiene gym activo en store?
-                    ├── No → select-gym.tsx (modal)
-                    └── Sí → (main)/tabs
-```
+        └── Con sesión → navigateAfterAuth()
+              ├── 0 gyms → select-gym (fullscreen)
+              ├── 1 gym  → setGym() → (main)/(routine)
+              └── N gyms → select-gym (fullscreen)
 
-El modal de selección de gym aparece:
-- Al primer login
-- Cuando el usuario toca "Cambiar gym" en perfil
-- Cuando el gym activo queda inaccesible (suspendido, membresía expirada)
+(main)/_layout.tsx
+  └── Sin selectedGymId → Redirect a /select-gym
+```
 
 ---
 
@@ -310,7 +288,6 @@ npx expo start --tunnel
 
 **Solución 2 — IP de WSL2:**
 ```bash
-# En WSL2
 ip addr show eth0 | grep 'inet '
 # Anotar la IP (ej: 172.28.x.x)
 # En app: EXPO_PUBLIC_API_URL=http://172.28.x.x:8080
@@ -322,8 +299,8 @@ npx expo start --host lan
 ## Reglas de Desarrollo
 
 1. **NUNCA AsyncStorage para tokens** — siempre `expo-secure-store`.
-2. **NUNCA fetch directo en componentes** — siempre React Query con `queryKey` tipada.
-3. **SIEMPRE verificar `activeGymId`** antes de hacer requests — puede ser null.
-4. **Google OAuth en mobile:** usar `expo-auth-session` con deep link. El redirect URI debe configurarse en Supabase y en `app.json` (`scheme`).
-5. **Offline:** mostrar datos cacheados de React Query mientras se reconecta. No bloquear la UI por falta de red.
+2. **NUNCA fetch directo en componentes** — siempre React Query con `queryKey` de `queryKeys.*`.
+3. **SIEMPRE verificar `selectedGymId`** antes de hacer requests — puede ser null.
+4. **Google OAuth en mobile:** `expo-auth-session` + `WebBrowser.openAuthSessionAsync`. Soporta PKCE y flujo implícito. El scheme es `sgg`.
+5. **Formularios:** usar `react-hook-form` + `zodResolver` — nunca estado manual con `useState`.
 6. **iOS y Android:** siempre testear en ambos. Los gestos y la navegación se comportan distinto.

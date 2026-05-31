@@ -215,6 +215,38 @@ const [member, progress] = await Promise.all([
 
 ---
 
+## /coach/history/[memberId] — Historial de un Miembro
+
+El coach puede ver el historial completo de rutinas y la progresión de peso de cualquier member de su gym. Usa los mismos componentes compartidos que las páginas de historial del member.
+
+**Rutas:**
+```
+/gym/[gymId]/coach/history/[memberId]                                       → lista de asignaciones
+/gym/[gymId]/coach/history/[memberId]/[assignmentId]                        → detalle de asignación
+/gym/[gymId]/coach/history/[memberId]/[assignmentId]/exercises/[exerciseId] → progresión de ejercicio
+```
+
+**Fetches:**
+```ts
+// Lista
+GET /api/gyms/{gymId}/coach/history/{memberId}/assignments
+
+// Detalle
+GET /api/gyms/{gymId}/coach/history/{memberId}/assignments/{assignmentId}
+
+// Progresión
+GET /api/gyms/{gymId}/coach/history/{memberId}/assignments/{assignmentId}/exercises/{exerciseId}
+```
+
+**Componentes:**
+- `HistoryListView` con `basePath={/gym/${gymId}/coach/history/${memberId}}`
+- `AssignmentDetailView` con el basePath correcto para el coach
+- `ExerciseProgressView` (igual que member)
+
+La página de lista tiene un link "← Mis miembros" hacia `/gym/${gymId}/coach/my-members`.
+
+---
+
 ## Tests
 
 ### Editor de Plantillas

@@ -1,151 +1,182 @@
 # App Móvil — Pantallas: Auth
-**Rutas:** `(auth)/login`, `(auth)/register`
+**Rutas:** `(auth)/login`, `(auth)/register`, `select-gym`
 **Usuarios:** Todos (pre-autenticación)
 
 ---
 
 ## login.tsx
 
-**Layout:** pantalla centrada, sin tab bar, logo de la app arriba.
+**Layout:** pantalla centrada con `Screen` (SafeAreaView + fondo blanco/dark). Sin tab bar.
 
 **Opciones:**
-1. Login con Google (`expo-auth-session` + Supabase OAuth)
-2. Login con email/password
+1. Login nativo con usuario/email + contraseña (principal)
+2. Login con Google (OAuth via Supabase)
 
-**Componente GoogleLoginButton:**
+**Usa `react-hook-form` + `zodResolver`:**
 ```ts
-import * as AuthSession from 'expo-auth-session'
-import * as WebBrowser from 'expo-web-browser'
-
-WebBrowser.maybeCompleteAuthSession()
-
-async function loginWithGoogle() {
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: AuthSession.makeRedirectUri({ scheme: 'sgg' }),
-    },
-  })
-  if (error) setError("No se pudo iniciar sesión con Google")
-}
-```
-
-**Requiere en app.json:**
-```json
-{
-  "expo": {
-    "scheme": "sgg",
-    "ios": { "bundleIdentifier": "com.sgg.app" },
-    "android": { "package": "com.sgg.app" }
-  }
-}
-```
-
-**Formulario email/password:**
-```ts
-const schema = z.object({
-  email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Mínimo 6 caracteres"),
+const loginSchema = z.object({
+  usernameOrEmail: z.string().min(1, 'Campo requerido'),
+  password: z.string().min(1, 'Campo requerido'),
 })
 ```
 
-**Estados de la pantalla:**
-- `idle` → formulario activo
-- `loading` → ActivityIndicator, inputs y botones deshabilitados
-- `error` → mensaje de error en rojo debajo del formulario
-
-**Manejo de errores Supabase (mobile):**
+**Flujo login nativo:**
 ```ts
-const SUPABASE_ERRORS: Record<string, string> = {
-  "Invalid login credentials": "Email o contraseña incorrectos",
-  "Email not confirmed": "Confirmá tu email antes de ingresar",
-  "Too many requests": "Demasiados intentos. Esperá unos minutos.",
-  "Network request failed": "Sin conexión a internet",
+await nativeLogin(data.usernameOrEmail, data.password)
+// nativeLogin llama POST /api/public/auth/login
+// guarda el JWT en SecureStore('sgg.jwt')
+await navigateAfterAuth()
+// navigateAfterAuth() resuelve hacia (main)/(routine) o /select-gym
+```
+
+> No requiere llamada a `/api/auth/sync` — solo el flujo Google la necesita.
+
+**Flujo Google OAuth (PKCE + implícito):**
+```ts
+const redirectUrl = makeRedirectUri({ scheme: 'sgg', path: 'auth/callback' })
+const { data } = await supabase.auth.signInWithOAuth({
+  provider: 'google',
+  options: { redirectTo: redirectUrl, skipBrowserRedirect: true },
+})
+const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl)
+
+if (result.type === 'success') {
+  // Soporta PKCE (code en query params) y flujo implícito (tokens en hash)
+  if (code) await supabase.auth.exchangeCodeForSession(code)
+  else await supabase.auth.setSession({ access_token, refresh_token })
+  await syncSupabaseUser()     // POST /api/auth/sync
+  await navigateAfterAuth()
 }
 ```
 
-**Post-login exitoso:**
-1. Llamar `POST /api/auth/sync` con los datos de la sesión
-2. Cargar membresías del usuario: `GET /api/users/me/memberships`
-3. Si tiene un solo gym activo → setear en GymStore → navegar a `(main)`
-4. Si tiene múltiples gyms → navegar a `select-gym` modal
-5. Si no tiene gyms → navegar a `(main)` con mensaje "Buscá tu gym para unirte"
+**Errores:** mostrados como toast (`toast.error(...)`). Si el error es `ApiError`, se usa `err.message`. Si no, mensaje genérico.
 
-**Link "¿No tenés cuenta?" → register.tsx**
+**Requiere en app.config.js:**
+```js
+scheme: 'sgg',
+ios: { bundleIdentifier: 'com.sgg.app' },
+android: { package: 'com.sgg.app' },
+```
+
+**Link "¿No tenés cuenta?" → `(auth)/register`**
 
 ---
 
 ## register.tsx
 
-**Campos:**
-- Nombre completo (text, requerido, min 2 chars)
-- Email (email, requerido)
-- Contraseña (password, requerido, min 6 chars)
-- Confirmar contraseña (password, must match)
+**Campos (en orden):**
+- Nombre completo (min 2 chars)
+- Email (email válido)
+- Usuario (min 3 chars, solo `[a-z0-9_]`)
+- Contraseña (min 8 chars)
+- Confirmar contraseña (debe coincidir)
 
 **Validación Zod:**
 ```ts
 const schema = z.object({
-  fullName: z.string().min(2, "Mínimo 2 caracteres").max(200),
-  email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Mínimo 6 caracteres"),
+  fullName: z.string().min(2, 'Nombre demasiado corto'),
+  email: z.string().email('Email inválido'),
+  username: z.string().min(3, 'Mínimo 3 caracteres').regex(/^[a-z0-9_]+$/, 'Solo letras, números y _'),
+  password: z.string().min(8, 'Mínimo 8 caracteres'),
   confirmPassword: z.string(),
-}).refine(d => d.password === d.confirmPassword, {
-  message: "Las contraseñas no coinciden",
-  path: ["confirmPassword"],
+}).refine((d) => d.password === d.confirmPassword, {
+  message: 'Las contraseñas no coinciden',
+  path: ['confirmPassword'],
 })
 ```
 
 **Flujo:**
-1. `supabase.auth.signUp({ email, password, options: { data: { full_name } } })`
-2. Supabase envía email de confirmación
-3. Mostrar pantalla: "Revisá tu email para confirmar tu cuenta"
-4. Cuando el usuario confirma → el `onAuthStateChange` detecta la sesión → sync + navegar
+1. `nativeRegister({ fullName, email, username, password })`  
+   → `POST /api/public/auth/register`  
+   → `POST /api/public/auth/login` (auto-login)  
+   → guarda JWT en SecureStore
+2. `router.replace('/')` — el BootstrapGate redirige automáticamente
+
+> Sin confirmación de email — el registro es inmediato.
+
+**Link "¿Ya tenés cuenta?" → vuelve atrás (router.back())**
 
 ---
 
-## select-gym.tsx (modal)
+## select-gym.tsx (pantalla fullscreen)
 
-**Cuándo aparece:** Al hacer login si el usuario tiene múltiples gyms activos.
+**Cuándo aparece:**
+- Al bootstrap si el usuario no tiene gym seleccionado o válido
+- Cuando el usuario toca "Cambiar gym" en perfil (si tiene múltiples membresías)
+- Si `(main)/_layout.tsx` detecta `selectedGymId === null`
 
 **Fetch:**
 ```ts
-const { data: memberships } = useQuery({
-  queryKey: ['memberships'],
-  queryFn: () => apiClient<UserMembershipDto[]>('/api/users/me/memberships'),
+const { data } = useQuery({
+  queryKey: queryKeys.memberships(),
+  queryFn: () => apiClient<ApiResponse<MembershipDto[]>>('/api/users/me/memberships'),
 })
+const memberships = data?.data?.filter((m) => m.status === 'ACTIVE') ?? []
 ```
 
-**Lista de gyms:**
-- FlatList con GymCard por cada membresía activa
-- GymCard: logo (o inicial del nombre), nombre, rol del usuario
-
-**Al seleccionar:**
+**Si tiene membresías activas:** FlatList con card por gym.
 ```ts
-function selectGym(gymId: number, gymName: string) {
-  useGymStore.getState().setActiveGym(gymId, gymName)
-  router.dismiss()  // cerrar modal
-  // El tab de rutina se carga automáticamente con el gymId activo
-}
+// Card muestra: nombre del gym, rol, gymSlug
+// Al tocar:
+setGym(String(gymId))
+router.replace('/(main)/(routine)')
 ```
 
-**Estado vacío:** "No tenés membresías activas. Buscá tu gym en la app."
+**Si no tiene membresías activas:** muestra búsqueda por slug + join request.
+```ts
+// Buscar gym:
+queryKeys.gymSearch(submittedSlug)
+// → GET /api/gyms/search?slug=...
+
+// Unirse:
+POST /api/gyms/${gymId}/join-request
+// onSuccess: toast("Solicitud enviada a {gymName}")
+```
+
+**Estado vacío sin membresías:** "No tenés membresías activas. Buscá un gym por su slug."
+
+---
+
+## BootstrapGate (app/_layout.tsx)
+
+No es una pantalla pero define el flujo de inicio:
+
+```
+App abre (_layout.tsx)
+  └── BootstrapGate
+        ├── Lee 'sgg.jwt' de SecureStore
+        ├── Lee sesión de Supabase
+        ├── Si nada → router.replace('/(auth)/login')
+        └── Si hay sesión → navigateAfterAuth()
+              ├── 0 membresías activas → /select-gym
+              ├── 1 membresía         → setGym() → /(main)/(routine)
+              └── N membresías        → /select-gym
+        
+        Timeout global: 12s → fallback a /(auth)/login
+        Error 401/403: limpia JWT + signOut + login
+```
+
+Muestra un overlay con `ActivityIndicator` y texto del paso actual mientras carga.
 
 ---
 
 ## Flujo de Navegación Completo (Auth)
 
 ```
-_layout.tsx
+_layout.tsx (BootstrapGate)
   │
   ├── Sin sesión → (auth)/login
-  │     └── Login exitoso
-  │           ├── 1 gym → setActiveGym → (main)/tabs
-  │           ├── N gyms → select-gym modal → (main)/tabs
-  │           └── 0 gyms → (main)/tabs (sin gym activo, pantalla de búsqueda)
+  │     ├── Login nativo exitoso → navigateAfterAuth()
+  │     └── Google OAuth exitoso → syncSupabaseUser() → navigateAfterAuth()
   │
-  └── Con sesión → (main)/tabs
-        └── Sin gym activo → select-gym modal
+  └── Con sesión → navigateAfterAuth()
+        ├── 0 gyms → /select-gym
+        ├── 1 gym  → setGym() → (main)/(routine)
+        └── N gyms → /select-gym
+              └── Seleccionar gym → setGym() → (main)/(routine)
+
+(main)/_layout.tsx
+  └── selectedGymId === null → <Redirect href="/select-gym" />
 ```
 
 ---
@@ -153,19 +184,18 @@ _layout.tsx
 ## Tests (Jest + React Native Testing Library)
 
 ```
-✅ login.tsx renderiza opciones Google + email/password
-✅ Submit con email inválido: error Zod, sin llamada a Supabase
-✅ Submit con credenciales incorrectas: mensaje de error en español
-✅ Login exitoso con 1 gym: navega a (main), llama /api/auth/sync
-✅ Login exitoso con múltiples gyms: abre select-gym modal
-✅ Login exitoso sin gyms: navega a (main) sin gym activo
-✅ Sin conexión: mensaje "Sin conexión a internet"
-✅ Loading state: inputs deshabilitados, ActivityIndicator visible
+✅ login.tsx: renderiza campo "Usuario o email" + contraseña + botón Google
+✅ Submit vacío: errores Zod inline, sin llamada a API
+✅ Login nativo exitoso: llama nativeLogin → navigateAfterAuth
+✅ Login falla (credenciales): muestra toast de error
+✅ Google OAuth: abre WebBrowser → syncSupabaseUser → navigateAfterAuth
+✅ Loading state: botón con spinner durante submit
 
-✅ register.tsx: contraseñas no coinciden → error inline
-✅ register.tsx: registro exitoso → pantalla de confirmación de email
+✅ register.tsx: validación de usuario (regex) y contraseñas no coinciden
+✅ register.tsx: registro exitoso → nativeRegister → router.replace('/')
 
-✅ select-gym: lista de gyms cargada correctamente
-✅ select-gym: seleccionar gym → setea en store y cierra modal
-✅ select-gym: sin gyms activos → estado vacío con instrucciones
+✅ select-gym: lista membresías activas
+✅ select-gym: seleccionar gym → setGym → replace a (main)/(routine)
+✅ select-gym: sin membresías → muestra buscador de slug
+✅ select-gym: join request exitoso → toast de confirmación
 ```

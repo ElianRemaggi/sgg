@@ -1,135 +1,163 @@
 # Frontend Web — Sección: Auth
-**Ruta base:** `/login`, `/select-gym`
+**Rutas:** `/login`, `/register`, `/select-gym`
 **Usuarios:** Todos (pre-autenticación)
 
 ---
 
-## Pantallas
-
-### /login
+## /login
 
 **Comportamiento:**
-- Si el usuario ya tiene sesión activa → redirect a `/select-gym`
-- Dos métodos de login: Google OAuth y email/password
-- Tras login exitoso → llamar `POST /api/auth/sync` para crear/actualizar el user en la BD → redirect a `/select-gym`
+- Si el usuario ya tiene sesión (nativa o Supabase) → redirect a `/select-gym` (middleware)
+- Dos métodos: Google OAuth y email/password nativo
+- Campo: `identifier` (acepta email O username)
 
 **Componentes:**
 ```
-LoginPage (Server Component — verifica sesión, redirect si ya logueado)
+LoginPage (Server Component — redirect si ya logueado)
 └── LoginForm (Client Component)
-    ├── GoogleLoginButton
-    └── EmailPasswordForm
+    ├── Botón "Continuar con Google"
+    └── Formulario email/password nativo
 ```
 
-**EmailPasswordForm:**
-- Campos: `email` (type=email), `password` (type=password)
-- Validación client-side con Zod:
-  ```ts
-  const schema = z.object({
-    email: z.string().email("Email inválido"),
-    password: z.string().min(6, "Mínimo 6 caracteres")
-  })
-  ```
-- Estados:
-  - `idle` → formulario habitual
-  - `loading` → botón deshabilitado + spinner
-  - `error` → mensaje de error inline (ej: "Credenciales incorrectas")
-
-**Manejo de errores Supabase:**
+**Flujo login nativo:**
 ```ts
-// Mapear errores de Supabase a mensajes en español
-const ERROR_MESSAGES: Record<string, string> = {
-  "Invalid login credentials": "Email o contraseña incorrectos",
-  "Email not confirmed": "Debés confirmar tu email antes de ingresar",
-  "Too many requests": "Demasiados intentos. Esperá unos minutos.",
-}
+// 1. POST al backend
+const res = await fetch(`${API_URL}/api/public/auth/login`, {
+  method: 'POST',
+  body: JSON.stringify({ identifier, password }),  // identifier = email o username
+})
+
+// 2. Guardar JWT en cookie httpOnly via BFF
+await fetch('/api/auth/native', {
+  method: 'POST',
+  body: JSON.stringify({ token: data.data.token }),
+})
+
+// 3. Redirect
+router.push('/select-gym')
+router.refresh()
 ```
 
-**Post-login — sync con backend:**
+**Flujo Google OAuth:**
 ```ts
-// Después de supabase.auth.signInWithPassword() exitoso:
-async function syncUser(session: Session) {
-  await apiClient('/api/auth/sync', {
-    method: 'POST',
-    body: JSON.stringify({
-      supabaseUid: session.user.id,
-      email: session.user.email,
-      fullName: session.user.user_metadata.full_name,
-      avatarUrl: session.user.user_metadata.avatar_url,
-      provider: session.user.app_metadata.provider,
-      providerUid: session.user.user_metadata.provider_id,
-    })
-  })
-}
+await supabase.auth.signInWithOAuth({
+  provider: 'google',
+  options: { redirectTo: `${window.location.origin}/auth/callback` },
+})
+// Supabase maneja el redirect. El auth/callback de Supabase crea la sesión.
+// No hay llamada manual a /api/auth/sync desde el frontend web —
+// el backend la procesa automáticamente en el primer request autenticado.
+```
+
+**Errores manejados:**
+- "Esta cuenta usa Google para ingresar" → mensaje específico
+- Otros → `data.message` del backend o "Email o contraseña incorrectos"
+- Error de red → "Error de conexión"
+
+**No usa Zod** — validación mínima con atributos HTML (`required`, `minLength`).
+
+---
+
+## /register
+
+**Comportamiento:**
+- Registro nativo via backend (el backend auto-genera el `username` desde el email)
+- Tras registro exitoso → guarda JWT → redirect a `/select-gym`
+
+**Campos:**
+- Nombre completo (`minLength=2`)
+- Email (`type=email`)
+- Contraseña (`minLength=6`)
+- Confirmar contraseña (validación client-side)
+
+> **Nota:** El formulario web no expone el campo `username` — el backend lo genera automáticamente desde el email via `UsernameGenerator`. Distinto al formulario móvil que sí pide username.
+
+**Flujo:**
+```ts
+// 1. Validar contraseñas coinciden (client-side)
+if (password !== confirmPassword) setError('Las contraseñas no coinciden')
+
+// 2. POST al backend
+await fetch(`${API_URL}/api/public/auth/register`, {
+  body: JSON.stringify({ email, fullName, password }),
+  // no incluye username — backend lo genera
+})
+
+// 3. Guardar JWT + redirect (mismo flow que login)
 ```
 
 ---
 
-### /select-gym
+## /select-gym
 
 **Comportamiento:**
-- Lista los gyms del usuario autenticado (llama `GET /api/users/me/memberships`)
-- Solo muestra membresías con `status = ACTIVE`
-- Al seleccionar un gym → guarda `gymId` en cookie de sesión → redirect a `/gym/{gymId}/...` según el rol
-- Si el usuario no tiene gyms activos → mostrar estado vacío con instrucciones para buscar un gym
-- Si el usuario tiene un solo gym activo → redirect automático sin mostrar la pantalla de selección
+- Lista membresías activas del usuario
+- Redirect automático si tiene un solo gym activo
+- Si no tiene gyms → muestra estado vacío con búsqueda por slug
+
+**Fetch (Server Component via `apiClient`):**
+```ts
+GET /api/users/me/memberships
+```
 
 **Redirect por rol:**
 ```ts
-function getHomeForRole(gymId: number, role: string): string {
-  switch (role) {
-    case 'ADMIN':
-    case 'ADMIN_COACH':
-      return `/gym/${gymId}/admin/members`
-    case 'COACH':
-      return `/gym/${gymId}/coach/my-members`
-    default:
-      return `/gym/${gymId}/admin/members` // fallback
-  }
-}
-```
-
-**Estados de la pantalla:**
-- `loading` → skeleton de cards
-- `empty` → "No tenés membresías activas. Pedile al admin de tu gym el slug para unirte."
-- `loaded` → grilla de GymCard
-
-**GymCard muestra:** logo, nombre, rol del usuario, estado de la membresía.
-
----
-
-## middleware.ts
-
-```ts
-// Rutas protegidas y redirects globales
-export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|login|api/public).*)',
-  ],
-}
-
-export async function middleware(request: NextRequest) {
-  // 1. Verificar sesión Supabase
-  // 2. Sin sesión + ruta protegida → /login
-  // 3. Con sesión + /login → /select-gym
-  // 4. Ruta /platform → verificar platform_role (fetch a /api/users/me)
-  // 5. El gym seleccionado activo se guarda en cookie 'active-gym-id'
+switch (role) {
+  case 'ADMIN':
+  case 'ADMIN_COACH': return `/gym/${gymId}/admin/members`
+  case 'COACH':       return `/gym/${gymId}/coach/templates`
+  default:            return `/gym/${gymId}/member/routine`  // MEMBER
 }
 ```
 
 ---
 
-## Tests (Playwright o Vitest + Testing Library)
+## middleware.ts — Flujo completo
 
 ```
-✅ /login — renderiza form de email/password y botón Google
-✅ /login — submit con email inválido: muestra error Zod sin llamar a Supabase
-✅ /login — credenciales incorrectas: muestra "Email o contraseña incorrectos"
-✅ /login — login exitoso: llama /api/auth/sync y redirige a /select-gym
-✅ /login — usuario ya logueado: redirige a /select-gym sin mostrar el form
-✅ /select-gym — un solo gym activo: redirige automáticamente
-✅ /select-gym — múltiples gyms: muestra lista y permite seleccionar
-✅ /select-gym — sin gyms activos: muestra estado vacío con instrucciones
-✅ /select-gym — seleccionar gym ADMIN: redirige a /admin/members
-✅ /select-gym — seleccionar gym COACH: redirige a /coach/my-members
+Request entrante
+  ├── pathname === '/' → redirect /landing
+  ├── pathname.startsWith('/landing') o '/privacy' → pasar (público)
+  ├── No autenticado + ruta protegida → redirect /login
+  └── Autenticado + /login o /register → redirect /select-gym
+```
+
+**Autenticación detectada:**
+- Cookie `sgg-token` (JWT nativo, httpOnly)
+- Sesión Supabase (cookies del SSR client)
+
+---
+
+## Route Handler: `/api/auth/native`
+
+```
+POST  /api/auth/native  { token }  → setea cookie sgg-token (httpOnly, 24h)
+DELETE /api/auth/native            → borra cookie sgg-token
+```
+
+Usado solo por el flujo de login/register nativo. El logout Supabase se hace via `supabase.auth.signOut()`.
+
+---
+
+## Tests
+
+### login-form.test.tsx (Vitest + Testing Library)
+```
+✅ Renderiza campo "Email o usuario" y "Contraseña"
+✅ Submit con campos vacíos: no llama a la API (required HTML)
+✅ Login nativo exitoso: llama /api/public/auth/login → /api/auth/native → push /select-gym
+✅ Error "Esta cuenta usa Google para ingresar": muestra mensaje específico
+✅ Error del backend (credenciales): muestra data.message
+✅ Error de red: muestra "Error de conexión"
+✅ Loading state: botón deshabilitado durante fetch
+```
+
+### middleware.test.ts
+```
+✅ / → redirect /landing
+✅ /landing → pasa sin auth
+✅ /gym/1/... sin auth → redirect /login
+✅ /login con sgg-token → redirect /select-gym
+✅ /login con Supabase session → redirect /select-gym
+✅ /gym/1/... con sgg-token → pasa
 ```

@@ -3,92 +3,73 @@
 
 ---
 
-## (progress)/index.tsx — Tab Progreso
+## (progress)/index.tsx — Tab Historial (Progreso actual)
+
+**Tab label:** "Historial" (ícono: BarChart2)
 
 **Fetch:**
 ```ts
-const { data: progress, isLoading } = useQuery({
-  queryKey: ['progress', gymId],
-  queryFn: () => apiClient<TrackingProgressDto>(
+const { data, isLoading, error, refetch } = useQuery({
+  queryKey: queryKeys.memberProgress(gymId),
+  queryFn: () => apiClient<ApiResponse<TrackingProgressDto>>(
     `/api/gyms/${gymId}/member/tracking/progress`
   ),
-  enabled: !!gymId,
-  refetchOnWindowFocus: true,   // refrescar al volver a la tab
+  refetchOnWindowFocus: true,
 })
 ```
 
 **Layout:**
 ```
 ScrollView
-├── ProgressRing (SVG animado)
-│   └── Porcentaje de completado de la rutina actual
-│       Ej: "75%" en el centro
+├── "Mi progreso" (título)
 │
-├── StatsRow
-│   ├── "18" completados hoy
-│   ├── "24" total en la rutina
-│   └── "6" pendientes
+├── Card con ProgressRing
+│   ├── Anillo SVG con porcentaje (progress.progressPercent)
+│   └── Nombre del bloque activo (progress.currentBlockName) o "Rutina activa"
 │
-├── "Última actividad: hace 2 horas"
+├── Stats row (3 cards)
+│   ├── Completados hoy (progress.completedToday) — verde
+│   ├── Total completados (progress.completedTotal) — slate
+│   └── Pendientes (totalExercises - completedTotal) — ámbar
 │
-└── BlockProgressList (si hay rutina activa)
-    └── Por cada bloque:
-        ├── Nombre ("Día 1 — Pecho")
-        └── Mini progress bar + "4/6 ejercicios"
+├── Card "Última actividad"
+│   └── Tiempo relativo ("hace 2 h", "hace 3 días") — basado en progress.lastActivityAt
+│
+├── "Rutina actual" + "{completedTotal} de {totalExercises} ejercicios completados"
+│
+└── Link "Ver historial de rutinas" → router.push('/(main)/(routine)/history')
 ```
 
-**ProgressRing — implementación:**
-```ts
-// SVG con animación de stroke-dashoffset
-// Usar Animated de React Native o react-native-reanimated
-// El porcentaje se anima al montar y al cambiar el valor
-
-function ProgressRing({ percent, size = 160 }: { percent: number; size?: number }) {
-  const radius = (size - 20) / 2
-  const circumference = 2 * Math.PI * radius
-  const strokeDashoffset = circumference * (1 - percent / 100)
-  // ...animación con useSharedValue de reanimated
-}
+**Sin rutina activa (404):**
 ```
-
-**Sin rutina activa:**
-```
-Ícono 📊
+EmptyState
 "Sin datos de progreso"
 "Cuando tu coach te asigne una rutina, verás tu progreso acá"
 ```
+
+**ProgressRing:** implementado con `react-native-svg` en `components/routine/ProgressRing.tsx`.
 
 ---
 
 ## (gym)/index.tsx — Tab Mi Gym — Info
 
+**Tab label:** "Mi gym" (ícono: Building2)
+
 **Fetch:**
 ```ts
 const { data: gymInfo } = useQuery({
-  queryKey: ['gym-info', gymId],
-  queryFn: () => apiClient<GymPublicDto>(`/api/gyms/${gymId}/info`),
-  enabled: !!gymId,
-  staleTime: 1000 * 60 * 10,   // 10 minutos, no cambia seguido
+  queryKey: queryKeys.gymInfo(gymId),
+  queryFn: () => apiClient<ApiResponse<GymPublicDto>>(`/api/gyms/${gymId}/info`),
+  staleTime: 1000 * 60 * 10,
 })
 ```
 
 **Layout:**
 ```
 ScrollView
-├── GymHeader
-│   ├── Logo del gym (o imagen placeholder)
-│   ├── Nombre del gym
-│   └── Descripción
-│
-├── InfoCard "Mi membresía"
-│   ├── Rol: "Miembro" / "Coach"
-│   ├── Estado: "Activa"
-│   └── Vence: "31 dic 2026" (en rojo si < 30 días)
-│
-├── InfoCard "Mi coach"
-│   ├── Foto + nombre del coach (si tiene)
-│   └── "Sin coach asignado" (si no tiene)
-│
+├── GymHeader: nombre, descripción
+├── InfoCard "Mi membresía": rol, estado, vencimiento
+├── InfoCard "Mi coach": nombre (o "Sin coach asignado")
 └── Link → Horarios (navega a (gym)/schedule)
 ```
 
@@ -99,30 +80,19 @@ ScrollView
 **Fetch:**
 ```ts
 const { data: schedule } = useQuery({
-  queryKey: ['schedule', gymId],
-  queryFn: () => apiClient<ScheduleActivityDto[]>(`/api/gyms/${gymId}/schedule`),
-  enabled: !!gymId,
-  staleTime: 1000 * 60 * 30,   // 30 minutos
+  queryKey: queryKeys.gymSchedule(gymId),
+  queryFn: () => apiClient<ApiResponse<ScheduleActivityDto[]>>(`/api/gyms/${gymId}/schedule`),
+  staleTime: 1000 * 60 * 30,
 })
 ```
 
 **Layout:**
 ```
 SectionList agrupado por día de la semana
-│
-├── Section "Lunes"
-│   └── ActivityCard
-│       ├── Nombre: "CrossFit Matutino"
-│       ├── Horario: "07:00 – 08:00"
-│       └── Descripción (si existe)
-│
-├── Section "Martes"
-│   └── (sin actividades: no mostrar la sección)
-│
+├── Section "Lunes" (destaca el día actual)
+│   └── ActivityCard: nombre, horario, descripción
 └── ...
 ```
-
-**Highlight del día actual:** la sección del día de hoy aparece con borde o fondo diferente.
 
 **Estado vacío:** "No hay actividades programadas para esta semana."
 
@@ -130,83 +100,87 @@ SectionList agrupado por día de la semana
 
 ## (profile)/index.tsx — Tab Perfil
 
+**Tab label:** "Perfil" (ícono: User)
+
 **Fetch:**
 ```ts
-const { data: user } = useQuery({
-  queryKey: ['me'],
-  queryFn: () => apiClient<UserDto>('/api/users/me'),
+const { data: userData } = useQuery({
+  queryKey: queryKeys.currentUser(),
+  queryFn: () => apiClient<ApiResponse<UserDto>>('/api/users/me'),
 })
 
-const { data: memberships } = useQuery({
-  queryKey: ['memberships'],
-  queryFn: () => apiClient<UserMembershipDto[]>('/api/users/me/memberships'),
+const { data: membershipsData } = useQuery({
+  queryKey: queryKeys.memberships(),
+  queryFn: () => apiClient<ApiResponse<MembershipDto[]>>('/api/users/me/memberships'),
 })
 ```
 
 **Layout:**
 ```
 ScrollView
-├── ProfileHeader
-│   ├── Avatar (Image con fallback a iniciales)
+│
+├── Card de perfil
+│   ├── Avatar (inicial del nombre, fondo green-100/green-900)
 │   ├── Nombre completo
-│   └── Email
+│   ├── Email
+│   └── Ícono Edit2 → abre modal "Editar nombre"
 │
-├── Section "Mi gym activo"
-│   ├── GymCard (gym seleccionado)
-│   └── Botón "Cambiar gym" → abre select-gym modal
-│         (visible solo si tiene más de 1 membresía activa)
+├── Link discreto "Eliminar cuenta" (texto xs rojo, alineado a la derecha)
+│   └── Abre modal de doble confirmación
 │
-├── Section "Unirse a un gym"
-│   ├── Input de búsqueda por slug
-│   └── Botón "Buscar"
-│         → GET /api/gyms/search?slug=...
-│         → Si existe: modal de confirmación → POST join-request
-│         → Si no existe: toast "No se encontró ningún gym con ese slug"
+├── Card "Mi gym activo" (si hay gym seleccionado con membresía activa)
+│   ├── Nombre del gym
+│   ├── Rol + gymSlug
+│   └── "Cambiar gym" → router.push('/select-gym')
+│         (visible solo si tiene > 1 membresía activa)
 │
-├── Section "Editar perfil"
-│   └── Link → editar nombre y avatar
+├── Card "Apariencia" — selector de tema
+│   └── Toggle de 3 opciones: Sistema | Claro | Oscuro
+│       (opción seleccionada: fondo verde)
 │
-└── Botón "Cerrar sesión" (rojo, al final)
+├── Card "Unirse a un gym"
+│   ├── TextInput + botón "Buscar" → GET /api/gyms/search?slug=...
+│   ├── Si encontrado: card con nombre/descripción + botón "Solicitar acceso"
+│   │     → modal de confirmación → POST /api/gyms/${id}/join-request
+│   └── Si no encontrado: "No se encontró ningún gym con ese slug."
+│
+└── Botón "Cerrar sesión" (variant destructive)
 ```
 
-**Flujo "Unirse a un gym":**
+**Flujo "Cerrar sesión":**
 ```ts
-async function searchAndJoin(slug: string) {
-  // 1. Buscar gym
-  const gym = await apiClient<GymPublicDto>(`/api/gyms/search?slug=${slug}`)
-  // gym encontrado → mostrar modal de confirmación
-
-  // 2. Modal: "¿Querés unirte a {nombre}?"
-  // Al confirmar:
-  await apiClient(`/api/gyms/${gym.id}/join-request`, { method: 'POST' })
-  showToast("Solicitud enviada. El admin del gym te dará acceso pronto.")
-  queryClient.invalidateQueries({ queryKey: ['memberships'] })
-}
+await logout()     // borra sgg.jwt + supabase.auth.signOut()
+clearGym()
+queryClient.clear()
+router.replace('/(auth)/login')
 ```
 
-**Posibles errores en join-request:**
-- 409 (ya tiene membresía pending/activa): toast "Ya tenés una solicitud pendiente en este gym"
-- 404 (gym no encontrado): toast "No se encontró ningún gym con ese slug"
-- Gym suspendido (404 del search): mismo mensaje que no encontrado
+**Modal "Editar nombre":**
+- TextInput pre-cargado con nombre actual
+- `PUT /api/users/me` con `{ fullName }`
+- `onSuccess`: invalida `queryKeys.currentUser()` + cierra modal + toast
 
-**Cerrar sesión:**
+**Modal "Eliminar cuenta" — doble confirmación:**
+- Muestra advertencia: "Esta acción es permanente"
+- El usuario debe escribir exactamente `ELIMINAR` (mayúsculas) para habilitar el botón
+- `DELETE /api/users/me`
+- `onSuccess`: logout() + clearGym() + queryClient.clear() + replace a login
+
+**Modal "Confirmar solicitud de gym":**
+- "¿Querés unirte a {gymName}?"
+- `POST /api/gyms/${id}/join-request`
+- `onSuccess`: toast + invalida memberships
+- Error 409: toast "Ya tenés una solicitud pendiente en este gym"
+
+**Selector de tema:**
 ```ts
-async function logout() {
-  await supabase.auth.signOut()
-  useGymStore.getState().clearActiveGym()
-  queryClient.clear()
-  router.replace('/(auth)/login')
+const { mode, setMode } = useThemeStore()
+const { setColorScheme } = useColorScheme()  // nativewind
+
+function handleSetTheme(m: ThemeMode) {
+  setMode(m)         // persiste en SecureStore
+  setColorScheme(m)  // aplica a NativeWind
 }
-```
-
-**Editar perfil:**
-```
-Modal o pantalla separada:
-├── Campo nombre (pre-cargado con nombre actual)
-└── [Cancelar] [Guardar]
-
-PUT /api/users/me → { fullName: "..." }
-Al guardar: invalidar query ['me'] y cerrar modal
 ```
 
 ---
@@ -216,37 +190,25 @@ Al guardar: invalidar query ['me'] y cerrar modal
 ### Progreso
 ```
 ✅ ProgressRing renderiza con el porcentaje correcto
-✅ Sin rutina activa: estado vacío correcto
-✅ Stats muestran números correctos (completados, total, pendientes)
-✅ Última actividad muestra tiempo relativo ("hace 2 horas")
-```
-
-### Mi Gym
-```
-✅ Info del gym cargada: nombre, descripción, logo
-✅ Info de membresía: rol y estado correctos
-✅ Coach asignado: nombre y foto
-✅ Sin coach: mensaje "Sin coach asignado"
-✅ Vencimiento < 30 días: texto en rojo
-```
-
-### Horarios
-```
-✅ Actividades agrupadas por día correctamente
-✅ Día actual destacado visualmente
-✅ Días sin actividades no aparecen en la lista
-✅ Sin actividades: estado vacío
+✅ Sin rutina activa (404): EmptyState correcto
+✅ Stats correctos (completadosHoy, total, pendientes)
+✅ Última actividad: tiempo relativo
+✅ Link a historial navega a /(main)/(routine)/history
 ```
 
 ### Perfil
 ```
-✅ Datos del usuario cargados: nombre, email, avatar
-✅ Gym activo mostrado con nombre y rol
+✅ Datos del usuario: nombre, email, inicial del avatar
+✅ Gym activo: nombre, rol, slug
 ✅ "Cambiar gym" visible solo con múltiples membresías
-✅ Búsqueda de gym por slug exitosa: modal de confirmación
-✅ Búsqueda de gym inexistente: toast de error
+✅ Selector de tema: opción seleccionada destaca en verde
+✅ Cambiar tema: llama setMode + setColorScheme
+✅ Búsqueda de gym por slug: muestra card con "Solicitar acceso"
+✅ Búsqueda inexistente: mensaje de no encontrado
 ✅ Join request exitoso: toast de confirmación
 ✅ Join request duplicado: toast 409
-✅ Cerrar sesión: limpia store, limpia queries, redirige a login
-✅ Editar nombre: modal pre-cargado, guardar actualiza el header
+✅ Editar nombre: modal pre-cargado, guardar invalida currentUser
+✅ Cerrar sesión: limpia todo → login
+✅ Eliminar cuenta: solo se habilita al escribir "ELIMINAR"
+✅ Eliminar cuenta exitosa: logout → login
 ```

@@ -1,5 +1,6 @@
-# App Móvil — Pantallas: Tab Mi Rutina
-**Rutas:** `(main)/(routine)/index`, `(main)/(routine)/history`
+# App Móvil — Pantallas: Tab Rutina
+**Rutas:** `(main)/(routine)/index`, `(main)/(routine)/history`, `(main)/(routine)/history/[assignmentId]`, `(main)/(routine)/history/[assignmentId]/exercise/[exerciseId]`
+**Tab label:** "Rutina" (ícono: Dumbbell)
 **Usuarios:** MEMBER
 
 ---
@@ -10,141 +11,202 @@ Esta es la pantalla principal de la app. El member la usa a diario para ver y co
 
 **Fetch:**
 ```ts
-const gymId = useGymStore(s => s.activeGymId)
+const { selectedGymId } = useGymStore()
+const gymId = selectedGymId!
 
-const { data: routine, isLoading, isError, error } = useQuery({
-  queryKey: ['routine', gymId],
-  queryFn: () => apiClient<ActiveRoutineDto>(`/api/gyms/${gymId}/member/routine`),
-  enabled: !!gymId,
-  staleTime: 1000 * 60 * 2,   // 2 minutos de cache
+const { data: routineData, isLoading, error, refetch } = useQuery({
+  queryKey: queryKeys.memberRoutine(gymId),
+  queryFn: () => apiClient<ApiResponse<MemberRoutineDto>>(`/api/gyms/${gymId}/member/routine`),
+})
+
+const { data: progressData } = useQuery({
+  queryKey: queryKeys.memberProgress(gymId),
+  queryFn: () => apiClient<ApiResponse<TrackingProgressDto>>(`/api/gyms/${gymId}/member/tracking/progress`),
+  retry: false,
 })
 ```
 
 **Estados posibles:**
 ```
-gymId === null          → NoGymScreen (buscar gym)
-isLoading               → RoutineSkeleton
-isError && status === 404 → NoRoutineScreen (sin rutina asignada)
-isError && otros         → ErrorScreen con botón reintentar
-data                    → RoutineView
+isLoading           → RoutineSkeleton
+error 404           → EmptyState "Sin rutina asignada"
+error otro          → ErrorScreen con botón reintentar
+data                → RoutineView
 ```
 
 **RoutineView — layout:**
 ```
 ScrollView
-├── RoutineHeader
-│   ├── Nombre de la plantilla
-│   ├── Fechas: "1 feb – 28 feb"
-│   └── ProgressBar + "18 de 24 ejercicios completados"
+├── Header
+│   ├── Nombre de la plantilla (text-xl bold)
+│   └── "Desde {fecha}" o "Desde {fecha} hasta {fecha}"
 │
-└── Lista de BlockSection (por cada bloque)
-    ├── BlockHeader: "Día 1 — Pecho y Tríceps"
-    └── Lista de ExerciseItem (por cada ejercicio)
-        ├── CompletionToggle (checkbox animado)
-        ├── Nombre del ejercicio (bold)
-        ├── "4 series · 8-10 reps · 90s descanso"
-        └── Notas (texto gris, colapsable si > 50 chars)
+├── RoutineProgressBar (si hay progressData)
+│   ├── Nombre del bloque activo + completados/total
+│   ├── Barra de progreso
+│   └── Chips de día (Día 1, Día 2, ...) → onSelectDay
+│
+└── BlockSection (del día activo)
+    └── Lista de ExerciseRow por ejercicio
 ```
 
-**CompletionToggle — lógica de toggle:**
+**Lógica de día activo:**
 ```ts
-const completeMutation = useMutation({
-  mutationFn: ({ exerciseId, isCompleted }: { exerciseId: number, isCompleted: boolean }) =>
-    apiClient(`/api/gyms/${gymId}/member/tracking/${isCompleted ? 'complete' : 'undo'}`, {
-      method: 'POST',
-      body: JSON.stringify({ assignmentId: routine.assignmentId, exerciseId }),
-    }),
-  onMutate: async ({ exerciseId, isCompleted }) => {
-    // Optimistic update: cambiar estado local inmediatamente
-    await queryClient.cancelQueries({ queryKey: ['routine', gymId] })
-    const prev = queryClient.getQueryData(['routine', gymId])
-    queryClient.setQueryData(['routine', gymId], (old: ActiveRoutineDto) => ({
-      ...old,
-      blocks: old.blocks.map(block => ({
-        ...block,
-        exercises: block.exercises.map(ex =>
-          ex.id === exerciseId ? { ...ex, isCompleted } : ex
-        )
-      }))
-    }))
-    return { prev }
-  },
-  onError: (err, vars, context) => {
-    // Rollback si falla
-    queryClient.setQueryData(['routine', gymId], context?.prev)
-    showToast("Error al guardar. Intentá de nuevo.")
-  },
-  onSettled: () => {
-    queryClient.invalidateQueries({ queryKey: ['progress', gymId] })
-  }
-})
+const [selectedDay, setSelectedDay] = useState<number | null>(null)
+const activeDay = selectedDay ?? (progress?.currentDayNumber ?? routine.blocks[0]?.dayNumber ?? 1)
+const activeBlock = routine.blocks.find((b) => b.dayNumber === activeDay) ?? routine.blocks[0]
 ```
 
-**Importante:** usar **optimistic update** para que el toggle se sienta instantáneo aunque haya latencia de red.
+Solo se muestra **un bloque a la vez** (el del día activo). El usuario puede cambiar de día tocando los chips en `RoutineProgressBar`.
 
-**ExerciseItem — comportamiento:**
-- Tap en el checkbox: toggle isCompleted
-- Ejercicio completado: tachado visualmente + opacity 0.6
-- Tap largo en el ejercicio: mostrar `restSeconds` con countdown timer (opcional)
-
-**NoRoutineScreen:**
-```
-Ícono 🏋️
-"Todavía no tenés una rutina asignada"
-"Tu coach te va a asignar una próximamente"
-[Contactar al coach] (si tiene coach asignado — abre WhatsApp / mensaje)
+**CompletionMap:**
+```ts
+const completionMap = new Map<number, ExerciseCompletionDto>(
+  (progress?.completions ?? []).map((c) => [c.exerciseId, c])
+)
+// Se pasa a BlockSection → ExerciseRow para saber qué ejercicios están completados
 ```
 
-**NoGymScreen:**
-```
-Ícono 🏢
-"No tenés un gym activo"
-[Seleccionar gym] → abre select-gym modal
-```
+**ExerciseRow — datos de completions (peso/reps/notas):**
+El ExerciseRow permite al usuario ingresar peso, reps y notas al completar. La mutación llama:
+- `POST /api/gyms/${gymId}/member/tracking/complete` con `{ assignmentId, exerciseId, weightKg, actualReps, notes }`
+- `POST /api/gyms/${gymId}/member/tracking/undo` para desmarcar
+
+**Optimistic update:** el toggle cambia el estado local inmediatamente; si falla, rollback + toast.
 
 ---
 
 ## (routine)/history.tsx — Historial de Rutinas
 
+Lista todas las asignaciones (activas y pasadas) del member.
+
 **Fetch:**
 ```ts
-const { data: history } = useQuery({
-  queryKey: ['routine-history', gymId],
-  queryFn: () => apiClient<RoutineAssignmentSummaryDto[]>(
-    `/api/gyms/${gymId}/member/routine/history`
-  ),
-  enabled: !!gymId,
+const { data } = useQuery({
+  queryKey: queryKeys.memberRoutineHistory(gymId),
+  queryFn: () =>
+    apiClient<ApiResponse<RoutineHistorySummaryDto[]>>(
+      `/api/gyms/${gymId}/member/history/assignments`
+    ),
 })
 ```
 
-**Lista:**
+> Endpoint: `/api/gyms/${gymId}/member/history/assignments` (no `/member/routine/history`)
+
+**Lista (FlatList):**
 ```
-FlatList
-└── HistoryCard (por cada asignación pasada)
-    ├── Nombre de la plantilla
-    ├── "1 feb 2026 – 28 feb 2026"
-    └── "24/24 ejercicios completados" (o el porcentaje que haya alcanzado)
+HistoryCard por asignación
+├── Nombre de la plantilla
+├── Badge "activa" (si item.isActive === true)
+├── Fechas: "1 ene 2026 – 28 ene 2026" (o "Desde {fecha}" si no tiene fin)
+├── "{totalCompletions} completados · {totalSessionDays} sesiones"
+└── "Último: {lastActivityAt}" (si existe)
+```
+
+**Al tocar una card:**
+```ts
+router.push(`/(main)/(routine)/history/${item.id}`)
 ```
 
 **Estado vacío:** "Todavía no tenés rutinas anteriores."
 
 ---
 
+## history/[assignmentId]/index.tsx — Detalle de Rutina
+
+Pantalla con header nativo ("Detalle de rutina", back → "Historial").
+
+**Fetch:**
+```ts
+const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>()
+
+apiClient<ApiResponse<AssignmentHistoryDetailDto>>(
+  `/api/gyms/${gymId}/member/history/assignments/${assignmentId}`
+)
+```
+
+**Layout:**
+```
+ScrollView
+├── Header: nombre de plantilla + rango de fechas
+├── Card "Resumen"
+│   ├── Sesiones (totalDistinctDays)
+│   ├── Completados (totalCompletions)
+│   ├── Primera sesión (firstActivityAt)
+│   └── Última sesión (lastActivityAt)
+│
+└── Por bloque:
+    ├── "Día N — {nombre del bloque}"
+    └── Lista de ExerciseRow
+        ├── Nombre del ejercicio
+        ├── "{sessionsCount} ses." | "Sin registros" (si sessionsCount === 0)
+        ├── "Mejor: X kg" (si bestWeightKg != null)
+        ├── "Último: X kg" (si lastWeightKg != null)
+        └── ChevronRight (solo si sessionsCount > 0) → navega a progresión
+```
+
+**Ejercicio sin sesiones:** sin tap, opacity 0.5.
+**Al tocar ejercicio con sesiones:**
+```ts
+router.push(`/(main)/(routine)/history/${assignmentId}/exercise/${exercise.exerciseId}`)
+```
+
+---
+
+## history/[assignmentId]/exercise/[exerciseId].tsx — Progresión de Ejercicio
+
+Pantalla con header nativo ("Progresión", back → "Rutina").
+
+**Fetch:**
+```ts
+apiClient<ApiResponse<ExerciseProgressDto>>(
+  `/api/gyms/${gymId}/member/history/assignments/${assignmentId}/exercises/${exerciseId}`
+)
+```
+
+**Layout:**
+```
+ScrollView
+├── "{blockName} · Día {dayNumber}"
+├── "{exerciseName}" (text-lg bold)
+│
+├── Stats row (cards)
+│   ├── Mejor: {bestWeightKg} kg
+│   ├── Promedio: {avgWeightKg} kg
+│   ├── Primero: {firstWeightKg} kg
+│   └── Evolución: {deltaPercent}% (verde si >0, rojo si <0)
+│
+├── WeightChart (SVG — solo si hay >= 2 sesiones con peso)
+│   ├── Gráfico de línea con puntos verdes (#16a34a)
+│   ├── Grid horizontal con etiquetas de peso (Y)
+│   └── Fechas primera/última sesión (X)
+│   (si < 2 sesiones: "Se necesitan al menos 2 sesiones con peso")
+│
+└── Lista de sesiones (desc cronológico)
+    └── SessionRow
+        ├── Fecha ({day} {mes})
+        ├── {weightKg} kg (si existe)
+        ├── {actualReps} reps (si existe)
+        └── Notes (si existe, max 2 líneas)
+```
+
+**WeightChart:** usa `react-native-svg` (Svg, Circle, Line, Polyline, Text). Solo grafica sesiones completadas con peso.
+
+---
+
 ## Tests
 
 ```
-✅ Sin gym activo: renderiza NoGymScreen con botón "Seleccionar gym"
-✅ Loading: muestra RoutineSkeleton (sin crashes)
-✅ Sin rutina asignada (404): renderiza NoRoutineScreen
-✅ Error de red: renderiza ErrorScreen con botón reintentar
-✅ Con rutina: renderiza bloques y ejercicios correctamente
-✅ Toggle completar: optimistic update cambia el UI inmediatamente
-✅ Toggle deshacer: revierte el estado visualmente
-✅ Toggle falla: rollback al estado anterior + toast
-✅ ProgressBar refleja cantidad de completados correctamente
-✅ Ejercicio completado: aparece visualmente diferente (tachado / opacidad)
-✅ Notas largas: colapsadas por defecto, expandibles
+✅ (routine)/index: loading → skeleton
+✅ (routine)/index: error 404 → EmptyState "Sin rutina asignada"
+✅ (routine)/index: error de red → ErrorScreen con reintentar
+✅ (routine)/index: rutina cargada → muestra nombre + RoutineProgressBar + BlockSection
+✅ (routine)/index: selección de día → cambia el bloque mostrado
+✅ (routine)/index: toggle completar → optimistic update inmediato
+✅ (routine)/index: toggle deshacer → revierte estado
 
-✅ Historial: lista de rutinas pasadas con fechas
-✅ Historial vacío: mensaje apropiado
+✅ history: lista de rutinas con fechas y stats
+✅ history: rutina activa → badge "activa"
+✅ history: vacío → EmptyState
+✅ history: tap en card → navega a /history/{id}
 ```

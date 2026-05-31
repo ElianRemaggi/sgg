@@ -1,6 +1,6 @@
 # Módulo: Identity
 **Package:** `com.sgg.identity`
-**Responsabilidad:** Gestión de usuarios del sistema. Sincronización con Supabase Auth. Auth nativa email/contraseña. Perfil de usuario.
+**Responsabilidad:** Gestión de usuarios del sistema. Sincronización con Supabase Auth. Auth nativa email/contraseña. Perfil de usuario. Soft delete de cuentas.
 
 ---
 
@@ -13,23 +13,31 @@ CREATE TABLE users (
     id              BIGSERIAL PRIMARY KEY,
     full_name       VARCHAR(200) NOT NULL,
     email           VARCHAR(255) NOT NULL UNIQUE,
+    username        VARCHAR(30)  NOT NULL UNIQUE,            -- V15: login por username
     avatar_url      VARCHAR(500),
-    supabase_uid    VARCHAR(100),            -- nullable desde V10 (auth nativa no tiene Supabase UID)
+    supabase_uid    VARCHAR(100),            -- nullable (auth nativa no tiene Supabase UID)
     password_hash   VARCHAR(255),            -- nullable; solo usuarios nativos (BCrypt)
     platform_role   VARCHAR(20)  NOT NULL DEFAULT 'USER',
     created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    updated_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMP NULL           -- V17: soft delete
 );
 
--- Índice parcial: solo aplica cuando supabase_uid no es null (V10)
-CREATE UNIQUE INDEX idx_users_supabase_uid ON users(supabase_uid) WHERE supabase_uid IS NOT NULL;
-CREATE UNIQUE INDEX idx_users_email ON users(email);
+-- Índices parciales activos (deleted_at IS NULL):
+CREATE UNIQUE INDEX idx_users_email_active     ON users(email)        WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_users_username_active  ON users(username)     WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_users_supabase_uid_active ON users(supabase_uid) WHERE deleted_at IS NULL;
 CREATE INDEX idx_users_platform_role ON users(platform_role);
 ```
 
 **platform_role valores:** `USER` | `SUPERADMIN`
 
-**Nota V10:** `supabase_uid` pasó de `NOT NULL` a nullable para soportar usuarios registrados via auth nativa (sin Supabase). Un usuario tiene `supabase_uid` OR `password_hash`, no ambos a la vez.
+**Invariantes de autenticación:**
+- Usuario nativo: tiene `password_hash`, `supabase_uid` es null
+- Usuario OAuth (Google): tiene `supabase_uid`, `password_hash` es null
+- Al crear por OAuth (`syncUser`): el `username` se genera automáticamente desde el email via `UsernameGenerator`
+
+**Soft delete:** el registro nunca se borra físicamente. Al eliminar una cuenta, se anonymizan email, username, se nullea password y supabase_uid, y se setea `deleted_at`.
 
 ### AuthIdentity
 
@@ -52,11 +60,12 @@ CREATE INDEX idx_auth_identities_user_id ON auth_identities(user_id);
 
 ### POST /api/public/auth/register
 **Auth:** Público
-**Descripción:** Registro nativo con email y contraseña. Crea el usuario en la BD con `password_hash` (BCrypt). No requiere Supabase.
+**Descripción:** Registro nativo con username, email y contraseña. No requiere Supabase.
 
 **Request body:**
 ```json
 {
+  "username": "juanperez",
   "fullName": "Juan Pérez",
   "email": "juan@email.com",
   "password": "contraseña123"
@@ -64,9 +73,10 @@ CREATE INDEX idx_auth_identities_user_id ON auth_identities(user_id);
 ```
 
 **Validaciones:**
+- `username`: `@NotBlank`, `@Pattern(regexp = "^[a-z0-9_]{3,30}$")` — solo minúsculas, números y `_`
 - `fullName`: `@NotBlank`, `@Size(min=2, max=200)`
 - `email`: `@NotBlank`, `@Email`
-- `password`: `@NotBlank`, `@Size(min=6)`
+- `password`: `@NotBlank`, `@Size(min=6, max=100)`
 
 **Response 201:**
 ```json
@@ -74,36 +84,58 @@ CREATE INDEX idx_auth_identities_user_id ON auth_identities(user_id);
   "success": true,
   "data": {
     "token": "eyJ...",
-    "user": { "id": 1, "fullName": "Juan Pérez", "email": "...", "platformRole": "USER" }
+    "user": { "id": 1, "username": "juanperez", "fullName": "Juan Pérez", "email": "...", "avatarUrl": null, "platformRole": "USER" }
   }
 }
 ```
 
-**Lógica:** Verificar email único → hashear contraseña (BCrypt) → crear User → emitir JWT HS384 firmado con `APP_JWT_SECRET`.
+**Lógica:**
+1. Verificar email único (entre no-eliminados)
+2. Verificar username único (entre no-eliminados)
+3. Hashear contraseña (BCrypt)
+4. Crear `User`
+5. Emitir JWT HS384 firmado con `APP_JWT_SECRET`
+
+**Errores:**
+- 409: "Ya existe una cuenta con ese email" | "Ya existe una cuenta con ese username"
 
 ---
 
 ### POST /api/public/auth/login
 **Auth:** Público
-**Descripción:** Login nativo con email y contraseña.
+**Descripción:** Login nativo. El campo `identifier` acepta email o username.
 
 **Request body:**
 ```json
 {
-  "email": "juan@email.com",
+  "identifier": "juanperez",
   "password": "contraseña123"
 }
 ```
+> También acepta `"identifier": "juan@email.com"`
+
+**Validaciones:**
+- `identifier`: `@NotBlank`
+- `password`: `@NotBlank`
 
 **Response 200:** igual que register (token + user)
 
-**Lógica:** Buscar user por email → verificar password con BCrypt → emitir JWT HS384.
+**Lógica:**
+- Si `identifier` contiene `@`: busca por email
+- Si no: busca por username
+- Verificar `password_hash` con BCrypt
+- Si el user no tiene `password_hash` (es OAuth): error "Esta cuenta usa Google para ingresar"
+- Emitir JWT HS384
+
+**Errores:**
+- 400: "Usuario o contraseña incorrectos" (mismo mensaje para no revelar si existe el usuario)
+- 400: "Esta cuenta usa Google para ingresar"
 
 ---
 
 ### POST /api/auth/sync
 **Auth:** Bearer JWT (cualquier usuario autenticado)
-**Descripción:** Se llama en el primer login. Crea el usuario en la BD si no existe, o actualiza sus datos si ya existe.
+**Descripción:** Se llama después del primer OAuth con Google. Crea el usuario en BD si no existe, o actualiza nombre y avatar si ya existe.
 
 **Request body:**
 ```json
@@ -123,20 +155,20 @@ CREATE INDEX idx_auth_identities_user_id ON auth_identities(user_id);
   "success": true,
   "data": {
     "id": 1,
+    "username": "juanperez",
     "fullName": "Juan Pérez",
     "email": "usuario@email.com",
     "avatarUrl": "https://...",
-    "platformRole": "USER",
-    "createdAt": "2026-01-01T00:00:00"
+    "platformRole": "USER"
   }
 }
 ```
 
 **Lógica:**
 1. Buscar user por `supabase_uid`
-2. Si no existe: crear nuevo `User` + `AuthIdentity`
+2. Si no existe: crear `User` con username generado por `UsernameGenerator.generateFromEmail(email)` + crear `AuthIdentity`
 3. Si existe: actualizar `full_name` y `avatar_url` si cambiaron
-4. Retornar el `UserDto`
+4. Si `AuthIdentity` ya existe (`provider + providerUid`): no duplicar
 
 ---
 
@@ -150,6 +182,7 @@ CREATE INDEX idx_auth_identities_user_id ON auth_identities(user_id);
   "success": true,
   "data": {
     "id": 1,
+    "username": "juanperez",
     "fullName": "Juan Pérez",
     "email": "usuario@email.com",
     "avatarUrl": "https://...",
@@ -172,11 +205,23 @@ CREATE INDEX idx_auth_identities_user_id ON auth_identities(user_id);
 }
 ```
 
-**Validaciones:**
-- `fullName`: `@NotBlank`, `@Size(min=2, max=200)`
-- `avatarUrl`: `@URL` si presente, `@Size(max=500)`
-
 **Response 200:** igual a GET /api/users/me
+
+---
+
+### DELETE /api/users/me
+**Auth:** Bearer JWT
+**Descripción:** Eliminar la cuenta del usuario autenticado (soft delete + anonimización).
+
+**Response 200:** `ApiResponse<Void>`
+
+**Lógica:**
+1. Marcar todas las membresías ACTIVE/PENDING como INACTIVE
+2. Eliminar todos los `AuthIdentity` del usuario
+3. Anonymizar datos del User: email → `deleted_{id}_{epochMillis}@deleted.sgg`, username → `deleted_{id}_{epochMillis}`, fullName → "Cuenta eliminada", avatarUrl → null, supabaseUid → null, passwordHash → null
+4. Setear `deleted_at = now()`
+
+> El registro de `users` nunca se borra físicamente para preservar integridad referencial (completions, asignaciones, etc.).
 
 ---
 
@@ -190,6 +235,7 @@ CREATE INDEX idx_auth_identities_user_id ON auth_identities(user_id);
   "success": true,
   "data": [
     {
+      "membershipId": 5,
       "gymId": 1,
       "gymName": "CrossFit Norte",
       "gymSlug": "crossfit-norte",
@@ -202,8 +248,6 @@ CREATE INDEX idx_auth_identities_user_id ON auth_identities(user_id);
 }
 ```
 
-**Nota:** Este endpoint lo implementa el módulo `identity` pero consulta la tabla `gym_members` del módulo `tenancy`. Se resuelve via una query en `UserService` que hace join con `gym_members` y `gyms`.
-
 ---
 
 ## DTOs
@@ -212,6 +256,7 @@ CREATE INDEX idx_auth_identities_user_id ON auth_identities(user_id);
 // Response usuario
 public record UserDto(
     Long id,
+    String username,     // incluido desde V15
     String fullName,
     String email,
     String avatarUrl,
@@ -226,14 +271,15 @@ public record AuthResponse(
 
 // Request registro nativo
 public record RegisterRequest(
-    @NotBlank @Size(min=2, max=200) String fullName,
+    @NotBlank @Pattern(regexp = "^[a-z0-9_]{3,30}$") String username,
     @NotBlank @Email String email,
-    @NotBlank @Size(min=6) String password
+    @NotBlank @Size(min=2, max=200) String fullName,
+    @NotBlank @Size(min=6, max=100) String password
 ) {}
 
 // Request login nativo
 public record LoginRequest(
-    @NotBlank @Email String email,
+    @NotBlank String identifier,   // email O username
     @NotBlank String password
 ) {}
 
@@ -254,7 +300,8 @@ public record UpdateProfileRequest(
 ) {}
 
 // Membership summary (para /me/memberships)
-public record UserMembershipDto(
+public record MembershipDto(
+    Long membershipId,
     Long gymId,
     String gymName,
     String gymSlug,
@@ -267,41 +314,40 @@ public record UserMembershipDto(
 
 ---
 
+## UsernameGenerator
+
+Genera usernames únicos a partir del email para usuarios OAuth. Normaliza el prefijo del email (minúsculas, reemplaza caracteres inválidos con `_`, rellena hasta mín. 3 chars, trunca a 30). Si el candidate ya existe, agrega sufijo numérico (`base2`, `base3`, ...).
+
+---
+
 ## Tests de Integración
 
 ### NativeAuthControllerTest
 
 ```
-✅ POST /api/public/auth/register — registro exitoso: 201 con token y user
-✅ POST /api/public/auth/register — email duplicado: 409
-✅ POST /api/public/auth/register — password muy corta: 400
-✅ POST /api/public/auth/register — email inválido: 400
-✅ POST /api/public/auth/login — credenciales correctas: 200 con token
-✅ POST /api/public/auth/login — contraseña incorrecta: 401
-✅ POST /api/public/auth/login — email no existe: 401
-✅ POST /api/public/auth/login — body inválido: 400
-```
-
-### AuthSyncControllerTest
-
-```
-✅ POST /api/auth/sync — usuario nuevo: crea user + auth_identity, retorna 200
-✅ POST /api/auth/sync — usuario existente: actualiza nombre y avatar, no duplica
-✅ POST /api/auth/sync — sin JWT: retorna 401
-✅ POST /api/auth/sync — body inválido (email faltante): retorna 400 con errores
-✅ POST /api/auth/sync — mismo provider+providerUid dos veces: no duplica auth_identity
+✅ POST /register — registro exitoso: 201 con token y user (incluye username)
+✅ POST /register — email duplicado: 409
+✅ POST /register — username duplicado: 409
+✅ POST /register — username con caracteres inválidos (ej: "Juan P"): 400
+✅ POST /register — password muy corta: 400
+✅ POST /register — email inválido: 400
+✅ POST /login — login por email: 200 con token
+✅ POST /login — login por username: 200 con token
+✅ POST /login — contraseña incorrecta: 400
+✅ POST /login — usuario OAuth intenta login nativo: 400 "Esta cuenta usa Google para ingresar"
+✅ POST /login — body inválido: 400
 ```
 
 ### UserControllerTest
 
 ```
-✅ GET /api/users/me — retorna perfil del usuario autenticado
-✅ GET /api/users/me — sin JWT: retorna 401
-✅ PUT /api/users/me — actualiza fullName y avatarUrl correctamente
-✅ PUT /api/users/me — fullName en blanco: retorna 400
-✅ PUT /api/users/me — avatarUrl inválida (no es URL): retorna 400
-✅ GET /api/users/me/memberships — retorna lista correcta de gyms con roles
-✅ GET /api/users/me/memberships — usuario sin gyms: retorna lista vacía
+✅ GET /api/users/me — retorna perfil con username
+✅ GET /api/users/me — sin JWT: 401
+✅ PUT /api/users/me — actualiza fullName y avatarUrl
+✅ PUT /api/users/me — fullName en blanco: 400
+✅ DELETE /api/users/me — anonimiza cuenta y retorna 200
+✅ GET /api/users/me/memberships — retorna lista de gyms con roles
+✅ GET /api/users/me/memberships — usuario sin gyms: lista vacía
 ```
 
 ---
@@ -309,13 +355,14 @@ public record UserMembershipDto(
 ## Dependencias del Módulo
 
 - **Depende de:** ninguno (es la base)
-- **Es usado por:** `tenancy` (para obtener datos del usuario), `platform` (para gestionar superadmins)
+- **Es usado por:** `tenancy`, `tracking`, `platform`
 
 ---
 
 ## Notas de Implementación
 
-- **Auth Supabase:** el `supabase_uid` es el `sub` del JWT. `CustomJwtAuthenticationConverter` busca el user en BD por `supabase_uid`.
-- **Auth nativa:** el `sub` del JWT HS384 es el `id` del User (Long como string). El `DualJwtDecoder` intenta primero el decoder nativo (HS384), si falla prueba con Supabase JWKS.
+- **Auth Supabase:** el `sub` del JWT es el `supabase_uid`. `CustomJwtAuthenticationConverter` busca el user por `supabase_uid`.
+- **Auth nativa:** el `sub` del JWT HS384 es el `id` del User (Long como string). `DualJwtDecoder` intenta primero HS384, si falla prueba JWKS de Supabase.
 - `SecurityUtils.getCurrentUserId()` funciona con ambos tipos de JWT.
-- `platform_role = SUPERADMIN` nunca se setea en `/auth/sync` ni en registro nativo — solo via `/api/platform/admins/promote`.
+- `platform_role = SUPERADMIN` solo se setea via `/api/platform/admins/promote` — nunca en register ni sync.
+- Queries de unicidad siempre filtran `deleted_at IS NULL` para no colisionar con cuentas eliminadas.

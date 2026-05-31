@@ -129,7 +129,7 @@ CREATE UNIQUE INDEX idx_unique_pending_membership
 ---
 
 ### GET /api/gyms/{gymId}/admin/members
-**Auth:** ADMIN | ADMIN_COACH | SUPERADMIN
+**Auth:** ADMIN | ADMIN_COACH | COACH | SUPERADMIN
 **Descripción:** Listar todos los miembros del gym con filtros opcionales.
 
 **Query params:** `?status=ACTIVE&role=COACH&page=0&size=20`
@@ -163,25 +163,25 @@ CREATE UNIQUE INDEX idx_unique_pending_membership
 ---
 
 ### PUT /api/gyms/{gymId}/admin/members/{memberId}/approve
-**Auth:** ADMIN | ADMIN_COACH | SUPERADMIN
+**Auth:** ADMIN | ADMIN_COACH | COACH | SUPERADMIN
 **Lógica:** Cambia `status = ACTIVE`. Opcionalmente setea `role` (default MEMBER).
 
 ---
 
 ### PUT /api/gyms/{gymId}/admin/members/{memberId}/reject
-**Auth:** ADMIN | ADMIN_COACH | SUPERADMIN
+**Auth:** ADMIN | ADMIN_COACH | COACH | SUPERADMIN
 **Lógica:** Cambia `status = REJECTED`. Solo si estaba PENDING.
 
 ---
 
 ### PUT /api/gyms/{gymId}/admin/members/{memberId}/block
-**Auth:** ADMIN | ADMIN_COACH | SUPERADMIN
+**Auth:** ADMIN | ADMIN_COACH | COACH | SUPERADMIN
 **Lógica:** Cambia `status = BLOCKED`. No se puede bloquear al owner.
 
 ---
 
 ### PUT /api/gyms/{gymId}/admin/members/{memberId}/expiry
-**Auth:** ADMIN | ADMIN_COACH | SUPERADMIN
+**Auth:** ADMIN | ADMIN_COACH | SUPERADMIN  *(el COACH no puede cambiar vencimientos)*
 **Request body:**
 ```json
 { "expiresAt": "2026-12-31T23:59:59" }
@@ -190,7 +190,7 @@ CREATE UNIQUE INDEX idx_unique_pending_membership
 ---
 
 ### PATCH /api/gyms/{gymId}/admin/members/{memberId}/role
-**Auth:** ADMIN | ADMIN_COACH | SUPERADMIN
+**Auth:** ADMIN | ADMIN_COACH | SUPERADMIN  *(el COACH no puede cambiar roles)*
 **Request body:**
 ```json
 { "role": "COACH" }

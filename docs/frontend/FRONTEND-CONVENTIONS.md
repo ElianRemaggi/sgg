@@ -184,23 +184,45 @@ npx shadcn-ui@latest add card
 
 ---
 
+## Tipos de API — `src/lib/api/types.ts`
+
+Todos los tipos que espejean los DTOs del backend están centralizados en `src/lib/api/types.ts`. Grupos:
+
+| Grupo | Tipos |
+|-------|-------|
+| Base | `ApiResponse<T>`, `PageResponse<T>` |
+| Tenancy | `GymDto`, `GymPublicDto`, `GymMemberDto`, `MembershipDto`, `JoinRequestResponse`, `MemberRole`, `MemberStatus` |
+| Platform | `GymSummaryDto`, `GymDetailDto`, `UserSummaryDto`, `SuperAdminDto`, `UserSearchDto`, `UserDto` |
+| Training | `RoutineTemplateSummaryDto`, `RoutineTemplateDetailDto`, `TemplateBlockDto`, `TemplateExerciseDto`, `RoutineAssignmentDto`, `MemberRoutineDto` |
+| Tracking | `ExerciseCompletionDto`, `TrackingProgressDto` |
+| History | `AssignmentHistorySummaryDto`, `AssignmentHistoryDetailDto`, `HistoryBlockDto`, `HistoryExerciseSummaryDto`, `HistoryStatsDto`, `ExerciseProgressDto`, `ExerciseSessionDto`, `ExerciseStatsDto` |
+| Schedule | `ScheduleActivityDto` |
+
+`TrackingProgressDto` incluye campos opcionales del backend que no siempre están presentes:
+```ts
+currentDayNumber?: number
+currentBlockName?: string
+totalExercisesToday?: number
+```
+
+---
+
 ## package.json — Dependencias Clave
 
 ```json
 {
   "dependencies": {
-    "next": "14.x",
-    "@supabase/ssr": "^0.3.0",
-    "@supabase/supabase-js": "^2.44.0",
-    "react-hook-form": "^7.52.0",
-    "@hookform/resolvers": "^3.6.0",
-    "zod": "^3.23.0",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^2.3.0",
-    "lucide-react": "^0.400.0",
-    "@tanstack/react-query": "^5.0.0",   // si se usa en Client Components
-    "date-fns": "^3.6.0"                 // formateo de fechas
+    "next": "15.x",
+    "@supabase/ssr": "^0.5.x",
+    "@supabase/supabase-js": "^2.x",
+    "react-hook-form": "^7.x",
+    "@hookform/resolvers": "^3.x",
+    "zod": "^3.x",
+    "class-variance-authority": "^0.7.x",
+    "clsx": "^2.x",
+    "tailwind-merge": "^2.x",
+    "lucide-react": "^0.4xx",
+    "tailwindcss": "^3.4.x"
   }
 }
 ```
