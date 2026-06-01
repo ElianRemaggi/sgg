@@ -282,3 +282,14 @@ export interface ScheduleActivityDto {
   endTime: string
   isActive: boolean
 }
+
+export interface GymRequestDto {
+  id: number
+  gymName: string
+  contactName: string
+  email: string
+  phone: string
+  message: string | null
+  status: 'PENDING' | 'CONTACTED' | 'APPROVED' | 'REJECTED'
+  createdAt: string
+}

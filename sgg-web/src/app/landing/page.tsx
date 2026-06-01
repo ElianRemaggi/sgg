@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { ContactForm } from './contact-form'
 import Image from 'next/image'
 import { Anton, Outfit } from 'next/font/google'
 import gsap from 'gsap'
@@ -132,7 +133,7 @@ const steps = [
   {
     num: '01',
     title: 'Creá tu Gimnasio',
-    desc: 'Registrate, configurá tu gimnasio y personalizalo en minutos. Sin tarjeta de crédito.',
+    desc: 'Dejanos tus datos y te contactamos para configurar tu gimnasio y dejarlo listo para usar.',
   },
   {
     num: '02',
@@ -1037,6 +1038,28 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── CONTACTO ─── */}
+      <section id="contacto" className="py-24 relative">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 100%, rgba(99,102,241,0.06) 0%, transparent 70%)' }}
+        />
+        <div className="max-w-2xl mx-auto px-6 relative z-10">
+          <div className="text-center mb-10">
+            <p className="text-xs uppercase tracking-widest font-semibold mb-3" style={{ color: 'hsl(241 100% 88%)' }}>
+              Sumate
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+              ¿Querés sumar tu gimnasio?
+            </h2>
+            <p className="text-base leading-relaxed" style={{ color: 'hsl(247 10% 50%)' }}>
+              Completá el formulario y te contactamos para dejarlo todo configurado.
+            </p>
+          </div>
+          <ContactForm />
+        </div>
+      </section>
+
       {/* ─── FOOTER ─── */}
       <footer className="py-14" style={{ borderTop: '1px solid rgba(184,180,255,0.07)' }}>
         <div className="max-w-7xl mx-auto px-6">
@@ -1048,9 +1071,9 @@ export default function LandingPage() {
               © {new Date().getFullYear()} SGG — Sistema de Gestión para Gimnasios
             </p>
             <div className="flex gap-6 text-xs" style={{ color: 'hsl(247 10% 28%)' }}>
-              {['Términos', 'Privacidad', 'Contacto'].map((item) => (
-                <a key={item} href="#" className="transition-colors duration-200 hover:text-white">{item}</a>
-              ))}
+              <a href="#" className="transition-colors duration-200 hover:text-white">Términos</a>
+              <a href="/privacy" className="transition-colors duration-200 hover:text-white">Privacidad</a>
+              <a href="#contacto" className="transition-colors duration-200 hover:text-white">Contacto</a>
             </div>
           </div>
         </div>

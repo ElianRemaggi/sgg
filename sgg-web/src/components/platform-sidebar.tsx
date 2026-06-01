@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Building2, Shield, LogOut } from 'lucide-react'
+import { Building2, Shield, Inbox, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -15,6 +15,7 @@ export function PlatformSidebar() {
   const links = [
     { href: '/platform/gyms', label: 'Gimnasios', icon: Building2 },
     { href: '/platform/admins', label: 'Superadmins', icon: Shield },
+    { href: '/platform/gym-requests', label: 'Solicitudes', icon: Inbox },
   ]
 
   async function handleLogout() {
