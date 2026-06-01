@@ -48,7 +48,7 @@ class AuthSyncControllerTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.data.fullName").value("Juan Pérez"))
             .andExpect(jsonPath("$.data.platformRole").value("USER"));
 
-        assertThat(userRepository.findBySupabaseUid("supabase-uid-123")).isPresent();
+        assertThat(userRepository.findBySupabaseUidAndDeletedAtIsNull("supabase-uid-123")).isPresent();
         assertThat(authIdentityRepository.existsByProviderAndProviderUid("google", "google-uid-123")).isTrue();
     }
 

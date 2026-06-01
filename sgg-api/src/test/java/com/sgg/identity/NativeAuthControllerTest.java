@@ -50,7 +50,7 @@ class NativeAuthControllerTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.data.user.fullName").value("Juan Pérez"))
             .andExpect(jsonPath("$.data.user.platformRole").value("USER"));
 
-        User saved = userRepository.findByEmail("test@email.com").orElseThrow();
+        User saved = userRepository.findByEmailAndDeletedAtIsNull("test@email.com").orElseThrow();
         assertThat(saved.getUsername()).isEqualTo("juanperez");
         assertThat(saved.getPasswordHash()).isNotNull();
         assertThat(saved.getSupabaseUid()).isNull();

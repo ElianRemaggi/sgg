@@ -5,8 +5,10 @@ import com.sgg.identity.dto.UpdateProfileRequest;
 import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.AuthIdentityRepository;
 import com.sgg.identity.repository.UserRepository;
+import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
 import com.sgg.tenancy.repository.GymMemberRepository;
+import com.sgg.tenancy.repository.GymRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,11 +32,15 @@ class UserControllerTest extends BaseIntegrationTest {
     @Autowired
     private GymMemberRepository gymMemberRepository;
 
+    @Autowired
+    private GymRepository gymRepository;
+
     private User testUser;
 
     @BeforeEach
     void setUp() {
         gymMemberRepository.deleteAll();
+        gymRepository.deleteAll();
         authIdentityRepository.deleteAll();
         userRepository.deleteAll();
 
@@ -115,8 +121,15 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void deleteMe_softDeletesUserAndInactivatesMemberships() throws Exception {
+        Gym gym = new Gym();
+        gym.setName("Test Gym");
+        gym.setSlug("test-gym-delete");
+        gym.setOwnerUserId(testUser.getId());
+        gym.setStatus("ACTIVE");
+        gym = gymRepository.save(gym);
+
         GymMember membership = new GymMember();
-        membership.setGymId(1L);
+        membership.setGymId(gym.getId());
         membership.setUserId(testUser.getId());
         membership.setRole("MEMBER");
         membership.setStatus("ACTIVE");
