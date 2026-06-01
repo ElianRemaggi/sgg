@@ -2,13 +2,13 @@
 
 import { useState, useTransition, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { SuperAdminDto, UserSearchDto, ApiResponse } from '@/lib/api/types'
+import { SuperAdminDto, UserSearchDto } from '@/lib/api/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/toast'
-import { promoteUser, demoteUser } from './actions'
+import { promoteUser, demoteUser, searchUsers } from './actions'
 
 interface Props {
   admins: SuperAdminDto[]
@@ -28,20 +28,9 @@ export function AdminsView({ admins, currentUserId }: Props) {
       setSearchResults([])
       return
     }
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/platform/users?search=${encodeURIComponent(query)}`,
-        { credentials: 'include' }
-      )
-      if (res.ok) {
-        const data: ApiResponse<UserSearchDto[]> = await res.json()
-        // Exclude existing superadmins from results
-        const adminIds = new Set(admins.map(a => a.id))
-        setSearchResults(data.data.filter(u => !adminIds.has(u.id)))
-      }
-    } catch {
-      // ignore
-    }
+    const results = await searchUsers(query)
+    const adminIds = new Set(admins.map(a => a.id))
+    setSearchResults(results.filter(u => !adminIds.has(u.id)))
   }, [admins])
 
   useEffect(() => {

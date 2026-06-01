@@ -1,9 +1,19 @@
 import { apiClient } from '@/lib/api/client'
 import type { ApiResponse, MembershipDto, UserDto } from '@/lib/api/types'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { GymSelector } from './gym-selector'
 import { GymSearch } from './gym-search'
 import { LogoutButton } from './logout-button'
+
+function getHomeForMembership(m: MembershipDto): string {
+  if (['ADMIN', 'ADMIN_COACH'].includes(m.role)) {
+    return `/gym/${m.gymId}/admin/members`
+  } else if (m.role === 'COACH') {
+    return `/gym/${m.gymId}/coach/templates`
+  }
+  return `/gym/${m.gymId}/member/routine`
+}
 
 export default async function SelectGymPage() {
   let memberships: MembershipDto[] = []
@@ -18,6 +28,11 @@ export default async function SelectGymPage() {
     isSuperadmin = userRes.data.platformRole === 'SUPERADMIN'
   } catch {
     // If API fails, show empty state
+  }
+
+  const activeMemberships = memberships.filter(m => m.status === 'ACTIVE')
+  if (!isSuperadmin && activeMemberships.length === 1) {
+    redirect(getHomeForMembership(activeMemberships[0]))
   }
 
   return (

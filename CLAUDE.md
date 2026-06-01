@@ -240,6 +240,7 @@ cd sgg-app && npx expo start --tunnel   # si hay problemas de red en WSL2
 - Frontend Web — Admin Coaches y Horarios: `docs/frontend/sections/03-admin-coaches-schedule.md`
 - Frontend Web — Coach Plantillas y Asignaciones: `docs/frontend/sections/04-coach-templates-assignments.md`
 - Frontend Web — Superadmin: `docs/frontend/sections/05-superadmin-platform.md`
+- Frontend Web — Member Rutina y Tracking: `docs/frontend/sections/06-member-routine.md`
 - App Móvil — Arquitectura y patrones: `docs/mobile/MOBILE.md`
 - App Móvil — Convenciones: `docs/mobile/MOBILE-CONVENTIONS.md`
 - App Móvil — Auth: `docs/mobile/screens/01-auth.md`

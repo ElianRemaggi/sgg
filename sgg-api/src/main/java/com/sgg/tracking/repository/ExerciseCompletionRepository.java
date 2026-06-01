@@ -6,10 +6,61 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface ExerciseCompletionRepository extends JpaRepository<ExerciseCompletion, Long> {
+
+    interface ExerciseLastNoteRow {
+        Long getExerciseId();
+        String getNotes();
+    }
+
+    @Query("""
+        SELECT ec.exerciseId AS exerciseId, ec.notes AS notes
+        FROM ExerciseCompletion ec
+        WHERE ec.userId = :userId
+          AND ec.exerciseId IN :exerciseIds
+          AND ec.isCompleted = true
+          AND ec.notes IS NOT NULL
+          AND ec.notes <> ''
+          AND ec.sessionDate < :today
+          AND ec.completedAt = (
+              SELECT MAX(ec2.completedAt) FROM ExerciseCompletion ec2
+              WHERE ec2.userId = :userId
+                AND ec2.exerciseId = ec.exerciseId
+                AND ec2.isCompleted = true
+                AND ec2.notes IS NOT NULL
+                AND ec2.notes <> ''
+                AND ec2.sessionDate < :today
+          )
+    """)
+    List<ExerciseLastNoteRow> findLastNotesByExerciseIds(
+            @Param("userId") Long userId,
+            @Param("exerciseIds") List<Long> exerciseIds,
+            @Param("today") LocalDate today);
+
+    interface AssignmentStatsRow {
+        Long getAssignmentId();
+        Long getSessionDays();
+        Long getTotalCompletions();
+        LocalDateTime getLastActivityAt();
+    }
+
+    @Query("""
+        SELECT ec.assignmentId as assignmentId,
+               COUNT(DISTINCT ec.sessionDate) as sessionDays,
+               COUNT(ec.id) as totalCompletions,
+               MAX(ec.completedAt) as lastActivityAt
+        FROM ExerciseCompletion ec
+        WHERE ec.userId = :userId
+          AND ec.assignmentId IN :assignmentIds
+          AND ec.isCompleted = true
+        GROUP BY ec.assignmentId
+    """)
+    List<AssignmentStatsRow> findStatsBatch(@Param("userId") Long userId,
+                                            @Param("assignmentIds") List<Long> assignmentIds);
 
     // Upsert de sesión del día
     Optional<ExerciseCompletion> findByAssignmentIdAndExerciseIdAndUserIdAndSessionDate(

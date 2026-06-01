@@ -6,8 +6,8 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 
 ## Estado General
 
-**Fase actual:** 5 — Web completa: Tracking + Schedule + Profile + PWA (completada)
-**Última actualización:** 2026-03-30
+**Fase actual:** 8 — Tests App Móvil
+**Última actualización:** 2026-05-13
 
 ---
 
@@ -123,16 +123,100 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 - [x] `next.config.mjs`: headers Cache-Control y Service-Worker-Allowed para sw.js
 - [x] Sidebar actualizado: member links = Mi Rutina + Horarios + Perfil
 
-### Fase 6 — App Móvil Core (pendiente)
-- [ ] Inicializar proyecto Expo (`sgg-app/`)
-- [ ] Configurar Supabase Auth + SecureStore
-- [ ] Pantalla de login (email + Google OAuth)
-- [ ] Hook useAuth + GymStore (Zustand)
-- [ ] Pantalla selección de gym
-- [ ] Flujo solicitud de membresía
-- [ ] Tab: Mi Rutina con tracking (completar ejercicios con peso/reps)
-- [ ] Tab: Mi Gym (info + horarios)
-- [ ] Tab: Perfil (editar + logout)
+#### Sub-Fase 5.6 — Historial de Rutinas con Progresión de Peso
+- [x] Flyway V16: agrega `session_date DATE` a `exercise_completions`; UNIQUE pasa a `(assignment_id, exercise_id, user_id, session_date)` para permitir múltiples sesiones por día
+- [x] `ExerciseCompletion` entity: nuevo campo `sessionDate`
+- [x] `ExerciseCompletionRepository`: upsert por `session_date`, queries de historial y progresión
+- [x] `TrackingServiceImpl`: complete/undo usan fecha de hoy; `getProgress` filtra por sesión actual
+- [x] `RoutineHistoryService` + Impl: `getMemberHistory`, `getAssignmentDetail`, `getExerciseProgress` con stats (mejor peso, promedio, delta%, días entrenados)
+- [x] `MemberHistoryController`: GET `/member/history/assignments` y sub-rutas
+- [x] `CoachHistoryController`: GET `/coach/history/{memberId}/assignments` y sub-rutas
+- [x] 8 DTOs nuevos: `AssignmentHistorySummaryDto`, `AssignmentHistoryDetailDto`, `ExerciseProgressDto`, `ExerciseSessionDto`, `ExerciseStatsDto`, `HistoryBlockDto`, `HistoryExerciseSummaryDto`, `HistoryStatsDto`
+- [x] Tests: `MemberHistoryControllerTest` (10), `CoachHistoryControllerTest` (7), +1 en `TrackingControllerTest` (session_date multi-sesión)
+- [x] Frontend tipos TS para todos los DTOs de historial
+- [x] Sidebar: ítem "Historial" para miembros con activación por sub-ruta
+- [x] Componentes en `src/components/history/`: `HistoryListView` (tabs activa/pasadas), `AssignmentDetailView`, `ExerciseProgressView` (gráfico SVG nativo + stats cards)
+- [x] Páginas member: `/member/history`, `/[assignmentId]`, `/exercises/[exerciseId]`
+- [x] Páginas coach: `/coach/history/[memberId]`, `/[assignmentId]`, `/exercises/[exerciseId]`
+
+#### Sub-Fase 5.7 — Username + Login Dual
+- [x] Flyway V15: agrega columna `username` a `users` con backfill desde email (dominio removido, colisiones resueltas con sufijo numérico)
+- [x] `UsernameGenerator`: genera username único a partir del email para usuarios Supabase
+- [x] `RegisterRequest`: ahora requiere `username`
+- [x] `LoginRequest`: acepta email o username como identificador (campo `identifier`)
+- [x] `UserRepository`: `findByUsername`, `findByEmailOrUsername`
+- [x] `UsernameGeneratorTest` (8 tests)
+- [x] Tests extendidos: `NativeAuthControllerTest` (+4 → 12 total), `AdminMembersControllerTest` (+6 → 20 total), `GymSearchControllerTest` (+5 → 8 total)
+- [x] Coach puede rechazar y bloquear miembros (antes solo admin)
+- [x] Frontend: login form acepta email o username
+
+#### Sub-Fase 5.8 — Landing Page Pública + Design System Aether
+- [x] Landing page en `/landing` con GSAP, animaciones scroll, secciones hero/features/roles/steps/CTA
+- [x] Middleware actualizado: `/` redirige a `/landing` sin requerir vars de Supabase
+- [x] Design system Aether aplicado a todo el panel (tokens CSS, clases `bg-app-gradient`, `glow`, gradientes por sección)
+- [x] Sidebar rediseñado: colores por sección (admin/coach/member) y gradiente
+- [x] `CardGlow`: nueva variante de `Card` con glow effect
+- [x] Páginas de auth rediseñadas con tokens Aether (bg-card, border-border, gradiente indigo→cyan en CTA)
+- [x] Routine view: días como tabs deslizables (swipeable) en lugar de scroll vertical; se abre automáticamente en el día actual
+- [x] Paleta landing rediseñada: violeta/cyan/verde; copy honesto (sin stats inventados)
+
+#### Sub-Fase 5.9 — Infraestructura de Testing Frontend
+- [x] Vitest + Testing Library para unit/integration tests
+- [x] Playwright para E2E con fixtures y MSW handlers
+- [x] GitHub Actions CI (`.github/workflows/web-tests.yml`): lint, typecheck y tests en push
+- [x] `tsconfig.json`: archivos de test excluidos para evitar conflicto de tipos vite/vitest en build
+- [x] Tests unitarios: `login-form.test.tsx`, `routine-tracking-view.test.tsx`, `api/auth/native/route.test.ts`, `history/` (3 archivos), `api/client.test.ts`, `middleware.test.ts`
+- [x] Tests E2E: `auth.spec.ts`, `member-routine.spec.ts`, `member-history.spec.ts`, `coach-history.spec.ts`
+- [x] Documentación: `docs/frontend/TESTING.md`
+
+#### Bug Fixes y Polish Post-Fase 5
+- [x] DualJwtDecoder: algoritmo HS384 especificado explícitamente (fix decode nativo)
+- [x] Flyway V14 (`fix_schedule_day_of_week_type`) recuperada al repo (estaba aplicada en prod pero sin commitear)
+- [x] `TrackingProgressDto`: campos opcionales faltantes agregados
+- [x] `exercise-row.tsx`: markup simplificado, layout mobile mejorado, confirmación al deshacer
+- [x] Platform/gyms/new: búsqueda de owner refactorizada a server action
+- [x] `seed-dev-db.sh`: reescrito para reflejar datos actuales (usuarios con `password_hash`, `username`, rutinas Push/Pull)
+- [ ] *(pendiente commit)* `select-gym/page.tsx`: auto-redirect role-aware para usuario con un solo gym activo (admin→members, coach→templates, member→routine)
+
+### Fase 6 — App Móvil Core ✅
+- [x] Inicializar proyecto Expo (`sgg-app/`) con NativeWind, React Query, Zustand, Expo Router
+- [x] Configurar Supabase Auth + SecureStore (`lib/supabase.ts`)
+- [x] API client con JWT automático (`lib/api.ts`); auth nativa (`lib/auth.ts`)
+- [x] Pantalla de login (email/username + Google OAuth via expo-auth-session)
+- [x] Pantalla de registro (nombre, email, username, contraseña)
+- [x] Hook `useGymStore` (Zustand + SecureStore persist)
+- [x] `app/_layout.tsx`: BootstrapGate — bootstrap de sesión y redirección automática
+- [x] Pantalla `select-gym.tsx`: lista membresías + búsqueda por slug + solicitud de acceso
+- [x] Tab Mi Rutina (`(routine)/index.tsx`): rutina activa, selector de día, progress bar, BlockSection + ExerciseRow con optimistic updates, peso/reps/notas
+- [x] Tab Historial (`(routine)/history.tsx`): lista de asignaciones pasadas
+- [x] Tab Progreso (`(progress)/index.tsx`): ProgressRing SVG animado, stats hoy/total/pendientes, link al historial
+- [x] Tab Mi Gym (`(gym)/index.tsx`): info del gym + membresía + link a horarios
+- [x] Tab Horarios (`(gym)/schedule.tsx`): actividades agrupadas por día, highlight del día actual
+- [x] Tab Perfil (`(profile)/index.tsx`): editar nombre (modal), gym activo, cambiar gym, unirse a gym, cerrar sesión
+- [x] Componentes UI: Button, Card, Badge, Input, Skeleton, EmptyState, ErrorScreen
+- [x] Componentes de rutina: BlockSection, ExerciseRow, RoutineProgressBar, ProgressRing
+- [x] Tipos TS completos en `types/api.ts` (todos los DTOs del backend)
+- [x] Query keys centralizadas en `lib/queryKeys.ts`
+- [x] Providers: QueryProvider, ToastProvider
+
+### Fase 7 — App Móvil: Historial Detallado ✅
+- [x] Stack layout en `(routine)/_layout.tsx` para navegación anidada dentro del tab
+- [x] `history.tsx` actualizado: items tappables con ChevronRight → navegan al detalle
+- [x] `history/[assignmentId]/index.tsx`: detalle de asignación (stats, bloques, ejercicios con mejor/último peso)
+- [x] `history/[assignmentId]/exercise/[exerciseId].tsx`: progresión de ejercicio con gráfico SVG (react-native-svg), stats cards, lista de sesiones
+- [x] Tipos TS: `AssignmentHistoryDetailDto`, `HistoryBlockDto`, `HistoryExerciseSummaryDto`, `HistoryStatsDto`, `ExerciseProgressDto`, `ExerciseSessionDto`, `ExerciseStatsDto`
+- [x] Query keys: `assignmentDetail`, `exerciseProgress`
+
+### Fase 8 — Tests App Móvil ✅
+- [x] Infraestructura: `jest.config.js` (jest-expo preset, path aliases, transformIgnorePatterns), `jest.setup.ts` (mocks globales de expo-router, expo-secure-store, react-native-svg, lucide-react-native, supabase, expo-web-browser)
+- [x] Mock manual de `react-native-reanimated` en `__mocks__/react-native-reanimated.js` (evita carga nativa de worklets en tests)
+- [x] `tests/utils/render.tsx`: wrapper de tests con QueryClient (retry:false) + ToastProvider
+- [x] `store/__tests__/gymStore.test.ts`: 4 tests unitarios del store Zustand (initial state, setGym, clearGym, múltiples llamadas)
+- [x] `app/(auth)/__tests__/login.test.tsx`: 5 tests (render, validación, login exitoso, error API, error genérico)
+- [x] `app/__tests__/select-gym.test.tsx`: 5 tests (render membresías, navegación, form de búsqueda, resultado de búsqueda)
+- [x] `app/(main)/(routine)/__tests__/routine-index.test.tsx`: 4 tests (render, fecha, 404 empty state, error screen)
+- [x] `app/(main)/(routine)/__tests__/routine-history.test.tsx`: 5 tests (render lista, badge activa, header, navegación, empty state)
+- [x] **23 tests · 5 suites · 0 fallos**
 
 ---
 
@@ -142,14 +226,31 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 
 | Módulo | Tests escritos | Pasando | Cobertura |
 |--------|---------------|---------|-----------|
-| identity | 18 | 18 | NativeAuthControllerTest (8), AuthSyncControllerTest (5), UserControllerTest (5) |
-| tenancy | 24 | 24 | GymSearchControllerTest (3), JoinRequestControllerTest (5), AdminMembersControllerTest (14), MembershipControllerTest (2) |
+| identity | 30 | 30 | NativeAuthControllerTest (12), AuthSyncControllerTest (5), UserControllerTest (5), UsernameGeneratorTest (8) |
+| tenancy | 37 | 37 | GymSearchControllerTest (8), JoinRequestControllerTest (7), AdminMembersControllerTest (20), MembershipControllerTest (2) |
 | training | 20 | 20 | RoutineTemplateControllerTest (13), RoutineAssignmentControllerTest (7) |
-| tracking | 10 | 10* | TrackingControllerTest (10) |
-| schedule | 8 | 8* | ScheduleControllerTest (8) |
-| platform | 27 | 27 | PlatformGymControllerTest (19), PlatformAdminControllerTest (8) |
+| tracking | 28 | 28* | TrackingControllerTest (11), MemberHistoryControllerTest (10), CoachHistoryControllerTest (7) |
+| schedule | 7 | 7* | ScheduleControllerTest (7) |
+| platform | 27 | 27 | PlatformGymControllerTest (18), PlatformAdminControllerTest (9) |
 
-**Total: 107 tests, 89 pasando localmente** (\* tracking y schedule requieren Docker Desktop corriendo)
+**Total: 149 tests** (\* tracking, history y schedule requieren Docker Desktop corriendo)
+
+### Tests Frontend (Vitest + Playwright)
+
+| Archivo | Tipo | Descripción |
+|---------|------|-------------|
+| `login-form.test.tsx` | unit | Login con email, username, errores |
+| `routine-tracking-view.test.tsx` | unit | Tracking de ejercicios, progress bar |
+| `api/auth/native/route.test.ts` | unit | API route de auth nativa |
+| `history/assignment-detail-view.test.tsx` | unit | Vista de detalle de asignación |
+| `history/exercise-progress-view.test.tsx` | unit | Gráfico de progresión |
+| `history/history-list-view.test.tsx` | unit | Lista de historial con tabs |
+| `api/client.test.ts` | unit | API client, manejo de errores |
+| `middleware.test.ts` | unit | Redirecciones y protección de rutas |
+| `auth.spec.ts` | E2E | Flujo de login/logout |
+| `member-routine.spec.ts` | E2E | Tracking de rutina |
+| `member-history.spec.ts` | E2E | Historial del miembro |
+| `coach-history.spec.ts` | E2E | Historial desde perspectiva coach |
 
 ---
 
@@ -230,3 +331,25 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 - **BUG-13: Fix timezone en fechas de asignación (frontend).** Se cambió de `new Date(startsAt).toISOString()` a template literal `${startsAt}T00:00:00` para evitar que la conversión a UTC desplace la fecha un día.
 
 - **BUG-17: ON DELETE CASCADE.** Migración V9 agrega `ON DELETE CASCADE` a las FKs de `template_blocks.template_id` y `template_exercises.block_id`.
+
+### Decisiones Sub-Fases 5.6 — 5.9
+
+- **session_date en exercise_completions (Sub-Fase 5.6).** El UNIQUE constraint pasó de `(assignment_id, exercise_id, user_id)` a `(assignment_id, exercise_id, user_id, session_date)`. Esto permite registrar el mismo ejercicio en días distintos (múltiples sesiones), que es el comportamiento real de un entrenamiento. `getProgress` filtra solo la sesión de hoy; el historial acumula todas.
+
+- **RoutineHistoryService separado de TrackingService (Sub-Fase 5.6).** El historial y la progresión son consultas de lectura complejas con múltiples joins y cálculos (delta%, mejor peso). Se justificó un service separado para no sobrecargar `TrackingService` y mantener la coherencia con la regla de un servicio por responsabilidad.
+
+- **Gráfico SVG nativo sin librería (Sub-Fase 5.6).** `ExerciseProgressView` usa SVG generado programáticamente en lugar de Recharts/Chart.js. Evita agregar una dependencia pesada para un solo componente; el gráfico de líneas es suficientemente simple para hacerlo manual.
+
+- **Username con backfill desde email (Sub-Fase 5.7).** V15 hace backfill usando la misma lógica que `UsernameGenerator`: toma el segmento antes del `@`, remueve caracteres inválidos, y agrega sufijo numérico si hay colisión. El campo es `UNIQUE NOT NULL` con índice.
+
+- **LoginRequest usa `identifier` (Sub-Fase 5.7).** En lugar de dos campos separados `email` y `username` en el request de login, se usa un único campo `identifier` que puede ser email o username. El service lo detecta por la presencia del `@`.
+
+- **Landing page sin autenticación de Supabase (Sub-Fase 5.8).** El middleware fue actualizado para que `/` redirija a `/landing` directamente, sin necesidad de que las vars de Supabase estén configuradas. Esto permite que el sitio sea accesible públicamente incluso en entornos sin Supabase.
+
+- **GSAP para animaciones de landing (Sub-Fase 5.8).** Se agregó `gsap` como dependencia. Las animaciones son scroll-triggered (ScrollTrigger plugin). Alternativa considerada: Framer Motion, descartada por ser más pesada y estar pensada para animaciones de componentes React, no de scroll narrativo.
+
+- **tsconfig.json excluye tests en build (Sub-Fase 5.9).** Los archivos `*.test.ts(x)` y `*.spec.ts` se excluyeron del `tsconfig.json` principal de Next.js para evitar conflictos de tipos entre los globals de `vite/client` y los de `@vitest/globals` durante `next build`.
+
+- **MSW para mocking en tests frontend (Sub-Fase 5.9).** Los tests de componentes usan Mock Service Worker (MSW) en lugar de `jest.mock` / `vi.mock` sobre el API client. Esto testea la integración real de fetch → handler → componente, sin acoplar los tests a la implementación interna del cliente.
+
+- **DualJwtDecoder algoritmo HS384 explícito.** La firma del secreto nativo usa HS384 pero `MacAlgorithm` no se estaba especificando explícitamente, causando que en algunos builds el decoder fallara al verificar tokens nativos. Se corrigió pasando `MacAlgorithm.HS384` explícitamente al `NimbusJwtDecoder`.

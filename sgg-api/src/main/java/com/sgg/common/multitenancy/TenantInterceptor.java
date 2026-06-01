@@ -68,12 +68,10 @@ public class TenantInterceptor implements HandlerInterceptor {
 
         try {
             Long userId = securityUtils.getCurrentUserId();
-            boolean hasAccess = gymMemberRepository.existsByGymIdAndUserIdAndStatusIn(
-                gymId, userId, List.of("ACTIVE")
-            );
-            if (!hasAccess) {
-                throw new TenantViolationException("No tenés acceso a este gym");
-            }
+            com.sgg.tenancy.entity.GymMember member = gymMemberRepository
+                    .findByGymIdAndUserIdAndStatus(gymId, userId, "ACTIVE")
+                    .orElseThrow(() -> new TenantViolationException("No tenés acceso a este gym"));
+            TenantContext.setCurrentMemberRole(member.getRole());
         } catch (com.sgg.common.exception.ResourceNotFoundException e) {
             // User not found in DB yet — let the request proceed, Spring Security handles auth
             return true;

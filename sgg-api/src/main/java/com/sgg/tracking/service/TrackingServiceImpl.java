@@ -7,12 +7,9 @@ import com.sgg.tracking.dto.*;
 import com.sgg.tracking.entity.ExerciseCompletion;
 import com.sgg.tracking.mapper.ExerciseCompletionMapper;
 import com.sgg.tracking.repository.ExerciseCompletionRepository;
-import com.sgg.training.entity.RoutineAssignment;
-import com.sgg.training.entity.TemplateBlock;
-import com.sgg.training.entity.TemplateExercise;
-import com.sgg.training.repository.RoutineAssignmentRepository;
-import com.sgg.training.repository.TemplateBlockRepository;
-import com.sgg.training.repository.TemplateExerciseRepository;
+import com.sgg.training.dto.AssignmentInfo;
+import com.sgg.training.dto.ExerciseInfo;
+import com.sgg.training.service.RoutineQueryService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,9 +31,7 @@ public class TrackingServiceImpl implements TrackingService {
     private static final Logger log = LoggerFactory.getLogger(TrackingServiceImpl.class);
 
     private final ExerciseCompletionRepository completionRepository;
-    private final RoutineAssignmentRepository assignmentRepository;
-    private final TemplateBlockRepository blockRepository;
-    private final TemplateExerciseRepository exerciseRepository;
+    private final RoutineQueryService routineQueryService;
     private final ExerciseCompletionMapper mapper;
     private final SecurityUtils securityUtils;
 
@@ -44,17 +39,17 @@ public class TrackingServiceImpl implements TrackingService {
     public ExerciseCompletionDto completeExercise(Long gymId, CompleteExerciseRequest request) {
         Long userId = securityUtils.getCurrentUserId();
 
-        RoutineAssignment assignment = assignmentRepository
-                .findActiveByMemberAndGym(userId, gymId)
+        AssignmentInfo assignment = routineQueryService.findActiveAssignment(userId, gymId)
                 .orElseThrow(() -> new ResourceNotFoundException("No tenés una rutina activa asignada"));
 
-        if (!assignment.getId().equals(request.assignmentId())) {
+        if (!assignment.id().equals(request.assignmentId())) {
             throw new BusinessException("El assignment no corresponde a tu rutina activa");
         }
 
-        validateExerciseBelongsToAssignment(request.exerciseId(), assignment.getTemplateId());
+        if (!routineQueryService.exerciseBelongsToTemplate(request.exerciseId(), assignment.templateId())) {
+            throw new BusinessException("El ejercicio no pertenece a la rutina asignada");
+        }
 
-        // Upsert por sesión del día: una entrada por ejercicio por día
         LocalDate today = LocalDate.now();
         ExerciseCompletion completion = completionRepository
                 .findByAssignmentIdAndExerciseIdAndUserIdAndSessionDate(
@@ -74,7 +69,6 @@ public class TrackingServiceImpl implements TrackingService {
         completion.setActualReps(request.actualReps());
         completion.setNotes(request.notes());
         completion.setCompletedAt(LocalDateTime.now());
-
         completion = completionRepository.save(completion);
 
         log.info("Exercise completed: gymId={}, assignmentId={}, exerciseId={}, userId={}",
@@ -96,14 +90,12 @@ public class TrackingServiceImpl implements TrackingService {
                     log.info("Exercise undone: gymId={}, assignmentId={}, exerciseId={}, userId={}",
                             gymId, request.assignmentId(), request.exerciseId(), userId);
                 });
-        // Idempotent: if not found, do nothing
     }
 
     @Override
     @Transactional(readOnly = true)
     public TrackingProgressDto getProgress(Long gymId) {
-        Long userId = securityUtils.getCurrentUserId();
-        return buildProgress(gymId, userId);
+        return buildProgress(gymId, securityUtils.getCurrentUserId());
     }
 
     @Override
@@ -113,45 +105,30 @@ public class TrackingServiceImpl implements TrackingService {
     }
 
     private TrackingProgressDto buildProgress(Long gymId, Long userId) {
-        RoutineAssignment assignment = assignmentRepository
-                .findActiveByMemberAndGym(userId, gymId)
+        AssignmentInfo assignment = routineQueryService.findActiveAssignment(userId, gymId)
                 .orElseThrow(() -> new ResourceNotFoundException("No hay rutina activa asignada"));
 
-        // Count total exercises in the template
-        List<TemplateBlock> blocks = blockRepository
-                .findByTemplateIdOrderBySortOrder(assignment.getTemplateId());
-        List<Long> blockIds = blocks.stream().map(TemplateBlock::getId).toList();
+        List<ExerciseInfo> exercises = routineQueryService.findExercisesByTemplateId(assignment.templateId());
+        long totalExercises = exercises.size();
+        Set<Long> validExerciseIds = exercises.stream().map(ExerciseInfo::id).collect(Collectors.toSet());
 
-        long totalExercises = 0;
-        Set<Long> validExerciseIds = Set.of();
-        if (!blockIds.isEmpty()) {
-            List<TemplateExercise> exercises = exerciseRepository
-                    .findByBlockIdInOrderBySortOrder(blockIds);
-            totalExercises = exercises.size();
-            validExerciseIds = exercises.stream()
-                    .map(TemplateExercise::getId)
-                    .collect(Collectors.toSet());
-        }
-
-        // Completions del día actual para la vista de rutina (toggle hoy)
         LocalDate today = LocalDate.now();
         List<ExerciseCompletion> todayCompletions = completionRepository
-                .findByAssignmentIdAndUserIdAndSessionDateAndIsCompletedTrue(assignment.getId(), userId, today);
+                .findByAssignmentIdAndUserIdAndSessionDateAndIsCompletedTrue(assignment.id(), userId, today);
 
-        Set<Long> finalValidExerciseIds = validExerciseIds;
         List<ExerciseCompletion> validTodayCompletions = todayCompletions.stream()
-                .filter(c -> finalValidExerciseIds.contains(c.getExerciseId()))
+                .filter(c -> validExerciseIds.contains(c.getExerciseId()))
                 .toList();
 
         long completedToday = validTodayCompletions.size();
-        long completedTotal = completionRepository.countCompletedByAssignment(assignment.getId(), userId);
+        long completedTotal = completionRepository.countCompletedByAssignment(assignment.id(), userId);
 
         int progressPercent = totalExercises > 0
                 ? (int) Math.round((double) completedToday / totalExercises * 100)
                 : 0;
 
         LocalDateTime lastActivityAt = completionRepository
-                .findLastActivity(assignment.getId(), userId)
+                .findLastActivity(assignment.id(), userId)
                 .map(ExerciseCompletion::getCompletedAt)
                 .orElse(null);
 
@@ -159,34 +136,25 @@ public class TrackingServiceImpl implements TrackingService {
                 .map(mapper::toDto)
                 .toList();
 
+        List<Long> exerciseIds = exercises.stream().map(ExerciseInfo::id).toList();
+        Map<Long, String> previousNotesByExerciseId = exerciseIds.isEmpty()
+                ? Map.of()
+                : completionRepository.findLastNotesByExerciseIds(userId, exerciseIds, LocalDate.now())
+                        .stream()
+                        .collect(Collectors.toMap(
+                                ExerciseCompletionRepository.ExerciseLastNoteRow::getExerciseId,
+                                ExerciseCompletionRepository.ExerciseLastNoteRow::getNotes
+                        ));
+
         return new TrackingProgressDto(
-                assignment.getId(),
+                assignment.id(),
                 totalExercises,
                 completedToday,
                 completedTotal,
                 progressPercent,
                 lastActivityAt,
-                completionDtos
+                completionDtos,
+                previousNotesByExerciseId
         );
-    }
-
-    private void validateExerciseBelongsToAssignment(Long exerciseId, Long templateId) {
-        List<TemplateBlock> blocks = blockRepository
-                .findByTemplateIdOrderBySortOrder(templateId);
-        List<Long> blockIds = blocks.stream().map(TemplateBlock::getId).toList();
-
-        if (blockIds.isEmpty()) {
-            throw new BusinessException("La plantilla no tiene ejercicios");
-        }
-
-        List<TemplateExercise> exercises = exerciseRepository
-                .findByBlockIdInOrderBySortOrder(blockIds);
-
-        boolean belongs = exercises.stream()
-                .anyMatch(e -> e.getId().equals(exerciseId));
-
-        if (!belongs) {
-            throw new BusinessException("El ejercicio no pertenece a la rutina asignada");
-        }
     }
 }

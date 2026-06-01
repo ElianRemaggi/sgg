@@ -14,9 +14,10 @@ interface ExerciseRowProps {
   assignmentId: number
   exercise: TemplateExerciseDto
   completion: ExerciseCompletionDto | undefined
+  previousNotes: string | null
 }
 
-export function ExerciseRow({ gymId, assignmentId, exercise, completion }: ExerciseRowProps) {
+export function ExerciseRow({ gymId, assignmentId, exercise, completion, previousNotes }: ExerciseRowProps) {
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [expanded, setExpanded] = useState(false)
@@ -165,6 +166,11 @@ export function ExerciseRow({ gymId, assignmentId, exercise, completion }: Exerc
             </div>
           </div>
           <div>
+            {previousNotes && (
+              <p className="text-xs text-muted-foreground mb-2">
+                <span className="font-medium">Observación:</span> {previousNotes}
+              </p>
+            )}
             <label className="text-xs text-muted-foreground mb-1 block">Notas (opcional)</label>
             <Input
               type="text"

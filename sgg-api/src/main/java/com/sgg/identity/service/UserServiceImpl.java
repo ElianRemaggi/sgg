@@ -9,11 +9,16 @@ import com.sgg.identity.entity.User;
 import com.sgg.identity.mapper.UserMapper;
 import com.sgg.identity.repository.AuthIdentityRepository;
 import com.sgg.identity.repository.UserRepository;
+import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.repository.GymMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -24,12 +29,13 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final AuthIdentityRepository authIdentityRepository;
+    private final GymMemberRepository gymMemberRepository;
     private final UserMapper userMapper;
     private final UsernameGenerator usernameGenerator;
 
     @Override
     public UserDto syncUser(SyncUserRequest request) {
-        User user = userRepository.findBySupabaseUid(request.supabaseUid())
+        User user = userRepository.findBySupabaseUidAndDeletedAtIsNull(request.supabaseUid())
             .map(existing -> {
                 boolean changed = false;
                 if (!existing.getFullName().equals(request.fullName())) {
@@ -90,5 +96,37 @@ public class UserServiceImpl implements UserService {
 
         log.info("Perfil actualizado: userId={}", user.getId());
         return userMapper.toDto(user);
+    }
+
+    @Override
+    public void deleteCurrentUser(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        if (user.getDeletedAt() != null) {
+            return;
+        }
+
+        List<GymMember> memberships = gymMemberRepository.findByUserId(userId);
+        for (GymMember m : memberships) {
+            if ("ACTIVE".equals(m.getStatus()) || "PENDING".equals(m.getStatus())) {
+                m.setStatus("INACTIVE");
+            }
+        }
+        gymMemberRepository.saveAll(memberships);
+
+        authIdentityRepository.deleteByUser_Id(userId);
+
+        long epochMillis = System.currentTimeMillis();
+        user.setEmail("deleted_" + userId + "_" + epochMillis + "@deleted.sgg");
+        user.setUsername("deleted_" + userId + "_" + epochMillis);
+        user.setFullName("Cuenta eliminada");
+        user.setAvatarUrl(null);
+        user.setSupabaseUid(null);
+        user.setPasswordHash(null);
+        user.setDeletedAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        log.info("Cuenta eliminada (soft): userId={}", userId);
     }
 }

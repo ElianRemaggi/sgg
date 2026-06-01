@@ -134,6 +134,39 @@ describe('RoutineTrackingView', () => {
     await waitFor(() => expect(undoExercise).toHaveBeenCalledWith('1', 1, 1))
   })
 
+  it('shows "Observación" from previous session when form is expanded', async () => {
+    const user = userEvent.setup()
+    render(
+      <RoutineTrackingView
+        gymId="1"
+        routine={aRoutine({ blocks: [{ id: 1, name: 'Push', dayNumber: 1, sortOrder: 1, exercises: [aExercise({ id: 1 })] }] })}
+        progress={aTracking({ completions: [], previousNotesByExerciseId: { 1: 'Subir 2.5 kg la próxima' } })}
+      />
+    )
+
+    const expandBtn = screen.getByRole('button', { name: '' })
+    await user.click(expandBtn)
+
+    expect(screen.getByText(/Observación:/i)).toBeInTheDocument()
+    expect(screen.getByText(/Subir 2\.5 kg la próxima/i)).toBeInTheDocument()
+  })
+
+  it('does not show "Observación" when there are no previous notes', async () => {
+    const user = userEvent.setup()
+    render(
+      <RoutineTrackingView
+        gymId="1"
+        routine={aRoutine({ blocks: [{ id: 1, name: 'Push', dayNumber: 1, sortOrder: 1, exercises: [aExercise({ id: 1 })] }] })}
+        progress={aTracking({ completions: [], previousNotesByExerciseId: {} })}
+      />
+    )
+
+    const expandBtn = screen.getByRole('button', { name: '' })
+    await user.click(expandBtn)
+
+    expect(screen.queryByText(/Observación:/i)).not.toBeInTheDocument()
+  })
+
   it('shows toast error when completeExercise fails', async () => {
     completeExercise.mockResolvedValue({ success: false, error: 'Error al completar' })
     const user = userEvent.setup()

@@ -10,7 +10,7 @@ import {
   TrendingUp,
   Calendar,
   Shield,
-  Building2,
+  Smartphone,
   ArrowRight,
   Menu,
   X,
@@ -42,13 +42,13 @@ const features = [
     icon: Dumbbell,
     color: 'tertiary',
     title: 'Rutinas Personalizadas',
-    desc: 'Creá plantillas de entrenamiento y asignalas a tus miembros en segundos. Del coach directo al miembro.',
+    desc: 'Creá plantillas con bloques y ejercicios, asignalas a cada miembro según su nivel. Del coach directo al plan de entrenamiento.',
   },
   {
     icon: TrendingUp,
     color: 'cyan',
-    title: 'Seguimiento de Progreso',
-    desc: 'Cada ejercicio completado queda registrado. Métricas reales de adherencia con historial completo.',
+    title: 'Sobrecarga Progresiva',
+    desc: 'Cada set registrado con peso y repeticiones. Detectá estancamientos, garantizá progresión y mostrá la evolución real de cada cliente.',
   },
   {
     icon: Calendar,
@@ -63,17 +63,17 @@ const features = [
     desc: 'Admin, Coach y Miembro con accesos diferenciados. Cada uno ve y hace solo lo que necesita.',
   },
   {
-    icon: Building2,
+    icon: Smartphone,
     color: 'cyan',
-    title: 'Multi-Sede',
-    desc: 'Gestioná múltiples sucursales desde un único panel. Datos separados, visión unificada.',
+    title: 'App Móvil Nativa',
+    desc: 'Los miembros tienen su plan siempre a mano en iOS y Android. Rutina del día, registro de peso y progresión — sin abrir el navegador.',
   },
 ]
 
 const pillars = [
-  { label: '3 roles', sub: 'Admin · Coach · Miembro' },
-  { label: 'Multi-sede', sub: 'Una cuenta, varios gyms' },
-  { label: 'Tiempo real', sub: 'Datos actualizados al instante' },
+  { label: 'Personalizado', sub: 'Un plan para cada miembro' },
+  { label: 'Seguimiento', sub: 'Cada sesión registrada' },
+  { label: 'Progresión', sub: 'Sobrecarga progresiva real' },
   { label: 'Beta gratuita', sub: 'Sin costo durante el lanzamiento' },
 ]
 
@@ -84,12 +84,12 @@ const roles = [
     colorVar: 'var(--primary-color)',
     bgVar: 'var(--primary-bg)',
     borderVar: 'var(--primary-border)',
-    desc: 'Control total del gimnasio. Desde gestión de miembros hasta métricas, todo en tus manos.',
+    desc: 'Control total del gimnasio. Supervisá el equipo, monitoreá la adherencia a las rutinas y tomá decisiones con datos reales.',
     perks: [
       'Panel de control completo',
       'Gestión de miembros y membresías',
       'Gestión de coaches',
-      'Métricas de adherencia',
+      'Seguimiento de rutinas de miembros',
       'Configuración del gimnasio',
       'Aprobación de nuevos miembros',
     ],
@@ -100,7 +100,7 @@ const roles = [
     colorVar: 'var(--tertiary-color)',
     bgVar: 'var(--tertiary-bg)',
     borderVar: 'var(--tertiary-border)',
-    desc: 'Diseñá y asigná rutinas personalizadas, hacé seguimiento del progreso y gestioná horarios.',
+    desc: 'Tu expertise, escalado. Diseñá planes de entrenamiento personalizados, controlá la sobrecarga progresiva y seguí la evolución diaria de cada miembro.',
     perks: [
       'Crear plantillas de rutinas',
       'Asignar entrenamientos a miembros',
@@ -116,14 +116,14 @@ const roles = [
     colorVar: 'var(--cyan-color)',
     bgVar: 'var(--cyan-bg)',
     borderVar: 'var(--cyan-border)',
-    desc: 'Accedé a tu rutina, registrá tus entrenamientos y seguí tu evolución. Simple y motivador.',
+    desc: 'Tu entrenamiento, siempre a mano. Ejecutá tu rutina, registrá cada serie y vé cómo avanzás con sobrecarga progresiva y datos reales.',
     perks: [
       'Ver rutina asignada',
       'Registrar ejercicios completados',
       'Historial personal de progreso',
       'Ver horarios de clases',
       'Perfil editable',
-      'Estadísticas de adherencia',
+      'Gráfico de progresión de peso',
     ],
   },
 ]
@@ -136,13 +136,13 @@ const steps = [
   },
   {
     num: '02',
-    title: 'Sumá tu Equipo',
-    desc: 'Invitá coaches, aprobá miembros y asigná roles. Cada persona accede con su perfil y sus permisos.',
+    title: 'Diseñá Rutinas',
+    desc: 'Creá plantillas con bloques y ejercicios. Asignalas a tus miembros según sus objetivos y nivel con un solo click.',
   },
   {
     num: '03',
-    title: 'Gestioná Todo',
-    desc: 'Rutinas, horarios, seguimiento y métricas desde un solo panel. Tu gimnasio, bajo control.',
+    title: 'Potenciá el Progreso',
+    desc: 'Cada sesión registrada con peso y repeticiones. Sobrecarga progresiva visible, historial completo y evolución real para coach y miembro.',
   },
 ]
 
@@ -221,6 +221,14 @@ export default function LandingPage() {
       gsap.from('[data-anim="cta-content"]', {
         scrollTrigger: { trigger: '[data-section="cta"]', start: 'top 75%' },
         y: 55, opacity: 0, duration: 1, ease: 'power3.out',
+      })
+      gsap.from('[data-anim="app-copy"]', {
+        scrollTrigger: { trigger: '[data-section="app"]', start: 'top 68%' },
+        x: -55, opacity: 0, duration: 0.9, ease: 'power3.out',
+      })
+      gsap.from('[data-anim="app-phones"] > *', {
+        scrollTrigger: { trigger: '[data-section="app"]', start: 'top 65%' },
+        y: 80, opacity: 0, duration: 0.9, stagger: 0.15, ease: 'back.out(1.2)',
       })
       ScrollTrigger.create({
         start: 'top -60',
@@ -425,29 +433,29 @@ export default function LandingPage() {
               >
                 <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'hsl(241 100% 88%)' }} />
                 <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'hsl(241 100% 88%)' }}>
-                  Sistema de Gestión para Gimnasios
+                  Entrenamiento Personalizado · Seguimiento Diario · Sobrecarga Progresiva
                 </span>
               </div>
 
               <div className="overflow-hidden">
                 <h1 data-anim="hero-line" className="font-display leading-none tracking-tight" style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(4.5rem, 10vw, 9rem)', lineHeight: '0.9' }}>
-                  TOMÁ EL
+                  DISEÑÁ
                 </h1>
               </div>
               <div className="overflow-hidden">
                 <h1 data-anim="hero-line" className="font-display leading-none tracking-tight gradient-primary" style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(4.5rem, 10vw, 9rem)', lineHeight: '0.9' }}>
-                  CONTROL
+                  PROGRESÁ
                 </h1>
               </div>
               <div className="overflow-hidden">
                 <h1 data-anim="hero-line" className="font-display leading-none tracking-tight" style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(4.5rem, 10vw, 9rem)', lineHeight: '0.9', color: 'hsl(247 10% 30%)' }}>
-                  DE TU GYM
+                  POTENCIÁ
                 </h1>
               </div>
 
               <p data-anim="hero-sub" className="mt-9 text-lg leading-relaxed max-w-lg" style={{ color: 'hsl(247 10% 55%)' }}>
-                SGG te da las herramientas para gestionar miembros, rutinas, coaches y horarios.
-                Todo desde un panel. Sin complicaciones, sin papel.
+                Diseñá rutinas para cada miembro, registrá cada sesión y garantizá sobrecarga progresiva.
+                El progreso de tus clientes, visible y medible cada día.
               </p>
 
               <div data-anim="hero-cta" className="mt-10 flex flex-wrap gap-4">
@@ -579,7 +587,7 @@ export default function LandingPage() {
               <span className="gradient-primary">NECESITÁS</span>
             </h2>
             <p className="mt-6 text-base leading-relaxed" style={{ color: 'hsl(247 10% 45%)' }}>
-              Un sistema completo para que te enfoques en los resultados de tus miembros, no en el papeleo.
+              Entrenamiento personalizado, seguimiento diario y sobrecarga progresiva. Cada herramienta pensada para potenciar el rendimiento real de cada miembro.
             </p>
           </div>
 
@@ -662,6 +670,206 @@ export default function LandingPage() {
                 />
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── APP MÓVIL ─── */}
+      <section data-section="app" id="app-movil" className="py-28 relative overflow-hidden">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse 75% 60% at 65% 50%, rgba(0,245,255,0.05) 0%, transparent 70%)' }}
+        />
+
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+
+            {/* Copy */}
+            <div data-anim="app-copy">
+              <div
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8"
+                style={{ background: 'rgba(0,245,255,0.06)', border: '1px solid rgba(0,245,255,0.18)' }}
+              >
+                <Smartphone size={13} color="hsl(190 100% 50%)" />
+                <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'hsl(190 100% 50%)' }}>
+                  App Móvil · iOS & Android
+                </span>
+              </div>
+
+              <h2
+                data-anim="section-title"
+                className="font-display leading-none mb-6"
+                style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(3rem, 7vw, 6rem)' }}
+              >
+                TU RUTINA
+                <br />
+                <span className="gradient-tertiary">EN TU BOLSILLO</span>
+              </h2>
+
+              <p className="text-base leading-relaxed mb-10" style={{ color: 'hsl(247 10% 50%)' }}>
+                Los miembros tienen su entrenamiento siempre a mano. La app está diseñada para usarse en el gym:
+                ves tu rutina del día, marcás cada ejercicio con peso y repeticiones, y el sistema construye
+                tu historial de progresión automáticamente.
+              </p>
+
+              <div className="space-y-3">
+                {[
+                  {
+                    title: 'Rutina del día',
+                    desc: 'Selector de bloques y ejercicios con series, reps y descanso definidos por el coach.',
+                    color: 'hsl(190 100% 50%)',
+                    bg: 'rgba(0,245,255,0.06)',
+                    border: 'rgba(0,245,255,0.1)',
+                  },
+                  {
+                    title: 'Registro por ejercicio',
+                    desc: 'Peso en kg, repeticiones reales y notas opcionales. Cada sesión guardada con fecha.',
+                    color: 'hsl(157 78% 52%)',
+                    bg: 'rgba(53,232,132,0.05)',
+                    border: 'rgba(53,232,132,0.1)',
+                  },
+                  {
+                    title: 'Gráfico de progresión',
+                    desc: 'Evolución de peso sesión a sesión con gráfico visual. Detectá estancamientos antes de que frenen el progreso.',
+                    color: 'hsl(241 100% 88%)',
+                    bg: 'rgba(184,180,255,0.05)',
+                    border: 'rgba(184,180,255,0.1)',
+                  },
+                  {
+                    title: 'Dark mode y múltiples gyms',
+                    desc: 'Tema claro, oscuro o automático. Soporte para pertenecer a varios gimnasios con una sola cuenta.',
+                    color: 'hsl(190 100% 50%)',
+                    bg: 'rgba(0,245,255,0.04)',
+                    border: 'rgba(0,245,255,0.08)',
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.title}
+                    className="flex items-start gap-4 rounded-xl p-4"
+                    style={{ background: item.bg, border: `1px solid ${item.border}` }}
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5"
+                      style={{ background: item.color }}
+                    />
+                    <div>
+                      <div className="text-sm font-semibold mb-0.5" style={{ color: 'hsl(234 20% 88%)' }}>
+                        {item.title}
+                      </div>
+                      <div className="text-xs leading-relaxed" style={{ color: 'hsl(247 10% 48%)' }}>
+                        {item.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Phone mockups */}
+            <div
+              data-anim="app-phones"
+              className="relative hidden lg:flex justify-center items-center gap-4"
+              style={{ height: '600px' }}
+            >
+              {[
+                {
+                  src: '/screenshots/member-routine.jpg',
+                  label: 'Mi Rutina',
+                  offsetY: 0,
+                  zIndex: 2,
+                  borderColor: 'rgba(184,180,255,0.2)',
+                  glow: 'rgba(184,180,255,0.1)',
+                  labelColor: 'hsl(247 10% 42%)',
+                },
+                {
+                  src: '/screenshots/member-history.jpg',
+                  label: 'Historial',
+                  offsetY: -50,
+                  zIndex: 3,
+                  borderColor: 'rgba(0,245,255,0.35)',
+                  glow: 'rgba(0,245,255,0.14)',
+                  labelColor: 'hsl(190 100% 50%)',
+                },
+                {
+                  src: '/screenshots/member-progress-chart.jpg',
+                  label: 'Progresión',
+                  offsetY: 40,
+                  zIndex: 2,
+                  borderColor: 'rgba(53,232,132,0.2)',
+                  glow: 'rgba(53,232,132,0.1)',
+                  labelColor: 'hsl(247 10% 42%)',
+                },
+              ].map((phone) => (
+                <div
+                  key={phone.label}
+                  className="flex-shrink-0"
+                  style={{
+                    marginTop: `${phone.offsetY}px`,
+                    zIndex: phone.zIndex,
+                    position: 'relative',
+                  }}
+                >
+                  {/* Phone frame */}
+                  <div
+                    style={{
+                      width: '178px',
+                      borderRadius: '38px',
+                      background: 'hsl(222 24% 7%)',
+                      border: `1.5px solid ${phone.borderColor}`,
+                      boxShadow: `0 40px 90px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.02), 0 0 50px ${phone.glow}`,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {/* Status bar + notch */}
+                    <div
+                      className="relative flex items-center justify-center"
+                      style={{ height: '28px', background: 'hsl(222 24% 8%)' }}
+                    >
+                      <div
+                        style={{
+                          width: '64px',
+                          height: '18px',
+                          background: 'hsl(222 24% 5%)',
+                          borderRadius: '0 0 14px 14px',
+                        }}
+                      />
+                    </div>
+                    {/* Screenshot */}
+                    <Image
+                      src={phone.src}
+                      alt={phone.label}
+                      unoptimized
+                      width={640}
+                      height={960}
+                      className="w-full h-auto"
+                      style={{ display: 'block', maxHeight: '350px', objectFit: 'cover', objectPosition: 'top' }}
+                    />
+                    {/* Home indicator */}
+                    <div
+                      className="flex items-center justify-center"
+                      style={{ height: '22px', background: 'hsl(222 24% 8%)' }}
+                    >
+                      <div
+                        style={{
+                          width: '44px',
+                          height: '4px',
+                          background: 'rgba(255,255,255,0.12)',
+                          borderRadius: '2px',
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {/* Label */}
+                  <p
+                    className="text-center text-xs font-medium mt-3"
+                    style={{ color: phone.labelColor }}
+                  >
+                    {phone.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+
           </div>
         </div>
       </section>
@@ -805,7 +1013,7 @@ export default function LandingPage() {
           </h2>
 
           <p className="text-lg mb-12 max-w-lg mx-auto leading-relaxed" style={{ color: 'hsl(247 10% 50%)' }}>
-            Empezá hoy sin costo. Sin contratos. Tu gimnasio merece un sistema que esté a la altura.
+            Empezá hoy sin costo. Diseñá rutinas personalizadas, garantizá sobrecarga progresiva y potenciá el crecimiento real de cada miembro. Sin contratos.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

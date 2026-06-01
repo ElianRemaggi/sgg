@@ -2,6 +2,7 @@ package com.sgg.tracking.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 public record TrackingProgressDto(
         Long assignmentId,
@@ -10,5 +11,6 @@ public record TrackingProgressDto(
         long completedTotal,
         int progressPercent,
         LocalDateTime lastActivityAt,
-        List<ExerciseCompletionDto> completions
+        List<ExerciseCompletionDto> completions,
+        Map<Long, String> previousNotesByExerciseId
 ) {}

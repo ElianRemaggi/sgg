@@ -30,7 +30,7 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, Abstract
         if (isNativeToken(jwt)) {
             userOpt = userRepository.findById(Long.valueOf(subject));
         } else {
-            userOpt = userRepository.findBySupabaseUid(subject);
+            userOpt = userRepository.findBySupabaseUidAndDeletedAtIsNull(subject);
         }
 
         userOpt.ifPresent(user -> {

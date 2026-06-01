@@ -18,7 +18,7 @@ public class UsernameGenerator {
 
         String candidate = base;
         int suffix = 2;
-        while (userRepository.existsByUsername(candidate)) {
+        while (userRepository.existsByUsernameAndDeletedAtIsNull(candidate)) {
             String suffixStr = String.valueOf(suffix);
             if (base.length() + suffixStr.length() > 30) {
                 candidate = base.substring(0, 30 - suffixStr.length()) + suffixStr;

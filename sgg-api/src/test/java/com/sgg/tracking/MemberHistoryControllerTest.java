@@ -155,6 +155,49 @@ class MemberHistoryControllerTest extends BaseIntegrationTest {
             .andExpect(status().isForbidden());
     }
 
+    @Test
+    void getHistory_twoAssignments_statsIsolatedPerAssignment() throws Exception {
+        // Asignación anterior (finalizada)
+        RoutineAssignment olderAssignment = new RoutineAssignment();
+        olderAssignment.setGymId(gym.getId());
+        olderAssignment.setTemplateId(assignment.getTemplateId());
+        olderAssignment.setMemberUserId(memberUser.getId());
+        olderAssignment.setAssignedBy(coachUser.getId());
+        olderAssignment.setStartsAt(LocalDateTime.now().minusDays(60));
+        olderAssignment.setEndsAt(LocalDateTime.now().minusDays(30));
+        olderAssignment = assignmentRepository.save(olderAssignment);
+
+        // Asignación activa: 2 completions en 2 días distintos
+        saveCompletionForAssignment(assignment.getId(), exercise1.getId(),
+                LocalDate.now().minusDays(3), new BigDecimal("80.00"));
+        saveCompletionForAssignment(assignment.getId(), exercise1.getId(),
+                LocalDate.now().minusDays(1), new BigDecimal("85.00"));
+
+        // Asignación anterior: 3 completions en 2 días distintos
+        saveCompletionForAssignment(olderAssignment.getId(), exercise1.getId(),
+                LocalDate.now().minusDays(45), new BigDecimal("70.00"));
+        saveCompletionForAssignment(olderAssignment.getId(), exercise2.getId(),
+                LocalDate.now().minusDays(45), new BigDecimal("120.00"));
+        saveCompletionForAssignment(olderAssignment.getId(), exercise2.getId(),
+                LocalDate.now().minusDays(40), new BigDecimal("125.00"));
+
+        Long olderAssignmentId = olderAssignment.getId();
+        mockMvc.perform(get("/api/gyms/{gymId}/member/history/assignments", gym.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject("member-hist-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(2))
+            // La más reciente (activa) va primero
+            .andExpect(jsonPath("$.data[0].id").value(assignment.getId()))
+            .andExpect(jsonPath("$.data[0].isActive").value(true))
+            .andExpect(jsonPath("$.data[0].totalCompletions").value(2))
+            .andExpect(jsonPath("$.data[0].totalSessionDays").value(2))
+            // La anterior (finalizada) va segunda con sus propios stats
+            .andExpect(jsonPath("$.data[1].id").value(olderAssignmentId))
+            .andExpect(jsonPath("$.data[1].isActive").value(false))
+            .andExpect(jsonPath("$.data[1].totalCompletions").value(3))
+            .andExpect(jsonPath("$.data[1].totalSessionDays").value(2));
+    }
+
     // ── GET /assignments/{assignmentId} ───────────────────────────────────────
 
     @Test
@@ -251,9 +294,14 @@ class MemberHistoryControllerTest extends BaseIntegrationTest {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void saveCompletion(Long exerciseId, LocalDate sessionDate, BigDecimal weight) {
+        saveCompletionForAssignment(assignment.getId(), exerciseId, sessionDate, weight);
+    }
+
+    private void saveCompletionForAssignment(Long assignmentId, Long exerciseId,
+                                              LocalDate sessionDate, BigDecimal weight) {
         ExerciseCompletion c = new ExerciseCompletion();
         c.setGymId(gym.getId());
-        c.setAssignmentId(assignment.getId());
+        c.setAssignmentId(assignmentId);
         c.setExerciseId(exerciseId);
         c.setUserId(memberUser.getId());
         c.setSessionDate(sessionDate);

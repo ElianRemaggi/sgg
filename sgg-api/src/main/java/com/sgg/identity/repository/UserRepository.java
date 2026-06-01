@@ -12,13 +12,13 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    Optional<User> findBySupabaseUid(String supabaseUid);
+    Optional<User> findBySupabaseUidAndDeletedAtIsNull(String supabaseUid);
 
-    Optional<User> findByEmail(String email);
+    Optional<User> findByEmailAndDeletedAtIsNull(String email);
 
-    Optional<User> findByUsername(String username);
+    Optional<User> findByUsernameAndDeletedAtIsNull(String username);
 
-    boolean existsByUsername(String username);
+    boolean existsByUsernameAndDeletedAtIsNull(String username);
 
     List<User> findByPlatformRole(String platformRole);
 

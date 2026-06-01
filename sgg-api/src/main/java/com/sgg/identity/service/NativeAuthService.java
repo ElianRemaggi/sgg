@@ -27,10 +27,10 @@ public class NativeAuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.findByEmail(request.email()).isPresent()) {
+        if (userRepository.findByEmailAndDeletedAtIsNull(request.email()).isPresent()) {
             throw new BusinessException("Ya existe una cuenta con ese email");
         }
-        if (userRepository.existsByUsername(request.username())) {
+        if (userRepository.existsByUsernameAndDeletedAtIsNull(request.username())) {
             throw new BusinessException("Ya existe una cuenta con ese username");
         }
 
@@ -66,10 +66,10 @@ public class NativeAuthService {
 
     private User findByIdentifier(String identifier) {
         if (identifier.contains("@")) {
-            return userRepository.findByEmail(identifier)
+            return userRepository.findByEmailAndDeletedAtIsNull(identifier)
                 .orElseThrow(() -> new BusinessException("Usuario o contraseña incorrectos"));
         }
-        return userRepository.findByUsername(identifier)
+        return userRepository.findByUsernameAndDeletedAtIsNull(identifier)
             .orElseThrow(() -> new BusinessException("Usuario o contraseña incorrectos"));
     }
 

@@ -11,4 +11,6 @@ public interface UserService {
     UserDto getProfile(Long userId);
 
     UserDto updateProfile(Long userId, UpdateProfileRequest request);
+
+    void deleteCurrentUser(Long userId);
 }

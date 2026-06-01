@@ -34,4 +34,11 @@ public class UserController {
         UserDto updated = userService.updateProfile(user.getId(), request);
         return ResponseEntity.ok(ApiResponse.ok(updated));
     }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<ApiResponse<Void>> deleteMe() {
+        Long userId = securityUtils.getCurrentUserId();
+        userService.deleteCurrentUser(userId);
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
 }

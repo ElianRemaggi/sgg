@@ -256,7 +256,6 @@ class TrackingControllerTest extends BaseIntegrationTest {
 
     @Test
     void getProgress_withCompletions_returnsStats() throws Exception {
-        // Complete exercise1
         ExerciseCompletion c = new ExerciseCompletion();
         c.setGymId(gym.getId());
         c.setAssignmentId(assignment.getId());
@@ -277,7 +276,136 @@ class TrackingControllerTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.data.completedToday").value(1))
             .andExpect(jsonPath("$.data.progressPercent").value(50))
             .andExpect(jsonPath("$.data.completions").isArray())
-            .andExpect(jsonPath("$.data.completions[0].weightKg").value(80.0));
+            .andExpect(jsonPath("$.data.completions[0].weightKg").value(80.0))
+            .andExpect(jsonPath("$.data.previousNotesByExerciseId").isMap());
+    }
+
+    @Test
+    void getProgress_previousNotesByExerciseId_returnsPriorSessionNotes() throws Exception {
+        // Completion de ayer con notas
+        ExerciseCompletion yesterday = new ExerciseCompletion();
+        yesterday.setGymId(gym.getId());
+        yesterday.setAssignmentId(assignment.getId());
+        yesterday.setExerciseId(exercise1.getId());
+        yesterday.setUserId(memberUser.getId());
+        yesterday.setSessionDate(LocalDate.now().minusDays(1));
+        yesterday.setIsCompleted(true);
+        yesterday.setNotes("Subir 2.5 kg la próxima");
+        yesterday.setCompletedAt(LocalDateTime.now().minusDays(1));
+        completionRepository.save(yesterday);
+
+        mockMvc.perform(get("/api/gyms/{gymId}/member/tracking/progress", gym.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("member-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.previousNotesByExerciseId." + exercise1.getId())
+                .value("Subir 2.5 kg la próxima"));
+    }
+
+    @Test
+    void getProgress_previousNotesByExerciseId_excludesTodaysCompletion() throws Exception {
+        // Completion de hoy con notas — NO debe aparecer como observación
+        ExerciseCompletion today = new ExerciseCompletion();
+        today.setGymId(gym.getId());
+        today.setAssignmentId(assignment.getId());
+        today.setExerciseId(exercise1.getId());
+        today.setUserId(memberUser.getId());
+        today.setSessionDate(LocalDate.now());
+        today.setIsCompleted(true);
+        today.setNotes("Nota de hoy");
+        today.setCompletedAt(LocalDateTime.now());
+        completionRepository.save(today);
+
+        mockMvc.perform(get("/api/gyms/{gymId}/member/tracking/progress", gym.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("member-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.previousNotesByExerciseId." + exercise1.getId()).doesNotExist());
+    }
+
+    @Test
+    void getProgress_previousNotesByExerciseId_returnsLatestWhenMultiplePriorSessions() throws Exception {
+        // Completion de hace 3 días — nota vieja
+        ExerciseCompletion older = new ExerciseCompletion();
+        older.setGymId(gym.getId());
+        older.setAssignmentId(assignment.getId());
+        older.setExerciseId(exercise1.getId());
+        older.setUserId(memberUser.getId());
+        older.setSessionDate(LocalDate.now().minusDays(3));
+        older.setIsCompleted(true);
+        older.setNotes("Nota vieja");
+        older.setCompletedAt(LocalDateTime.now().minusDays(3));
+        completionRepository.save(older);
+
+        // Completion de ayer — nota más reciente
+        ExerciseCompletion newer = new ExerciseCompletion();
+        newer.setGymId(gym.getId());
+        newer.setAssignmentId(assignment.getId());
+        newer.setExerciseId(exercise1.getId());
+        newer.setUserId(memberUser.getId());
+        newer.setSessionDate(LocalDate.now().minusDays(1));
+        newer.setIsCompleted(true);
+        newer.setNotes("Nota reciente");
+        newer.setCompletedAt(LocalDateTime.now().minusDays(1));
+        completionRepository.save(newer);
+
+        mockMvc.perform(get("/api/gyms/{gymId}/member/tracking/progress", gym.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("member-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.previousNotesByExerciseId." + exercise1.getId())
+                .value("Nota reciente"));
+    }
+
+    @Test
+    void getProgress_previousNotesByExerciseId_ignoresCompletionsWithoutNotes() throws Exception {
+        // Completion de ayer sin notas
+        ExerciseCompletion noNotes = new ExerciseCompletion();
+        noNotes.setGymId(gym.getId());
+        noNotes.setAssignmentId(assignment.getId());
+        noNotes.setExerciseId(exercise1.getId());
+        noNotes.setUserId(memberUser.getId());
+        noNotes.setSessionDate(LocalDate.now().minusDays(1));
+        noNotes.setIsCompleted(true);
+        noNotes.setNotes(null);
+        noNotes.setCompletedAt(LocalDateTime.now().minusDays(1));
+        completionRepository.save(noNotes);
+
+        mockMvc.perform(get("/api/gyms/{gymId}/member/tracking/progress", gym.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("member-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.previousNotesByExerciseId." + exercise1.getId()).doesNotExist());
+    }
+
+    @Test
+    void getProgress_previousNotesByExerciseId_crossAssignmentLookup() throws Exception {
+        // Crear una segunda asignación (nueva rutina)
+        RoutineAssignment newAssignment = new RoutineAssignment();
+        newAssignment.setGymId(gym.getId());
+        newAssignment.setTemplateId(assignment.getTemplateId());
+        newAssignment.setMemberUserId(memberUser.getId());
+        newAssignment.setAssignedBy(coachUser.getId());
+        newAssignment.setStartsAt(LocalDateTime.now().minusHours(1));
+        newAssignment = assignmentRepository.save(newAssignment);
+
+        // Completion de ayer en la asignación ANTERIOR
+        ExerciseCompletion priorAssignmentCompletion = new ExerciseCompletion();
+        priorAssignmentCompletion.setGymId(gym.getId());
+        priorAssignmentCompletion.setAssignmentId(assignment.getId());
+        priorAssignmentCompletion.setExerciseId(exercise1.getId());
+        priorAssignmentCompletion.setUserId(memberUser.getId());
+        priorAssignmentCompletion.setSessionDate(LocalDate.now().minusDays(1));
+        priorAssignmentCompletion.setIsCompleted(true);
+        priorAssignmentCompletion.setNotes("Nota de asignación anterior");
+        priorAssignmentCompletion.setCompletedAt(LocalDateTime.now().minusDays(1));
+        completionRepository.save(priorAssignmentCompletion);
+
+        // Marcar la asignación original como expirada para que la nueva sea la activa
+        assignment.setEndsAt(LocalDateTime.now().minusHours(2));
+        assignmentRepository.save(assignment);
+
+        mockMvc.perform(get("/api/gyms/{gymId}/member/tracking/progress", gym.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("member-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.previousNotesByExerciseId." + exercise1.getId())
+                .value("Nota de asignación anterior"));
     }
 
     @Test

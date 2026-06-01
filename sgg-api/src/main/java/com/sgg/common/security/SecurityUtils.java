@@ -42,10 +42,14 @@ public class SecurityUtils {
 
         String subject = jwt.getSubject();
         if (CustomJwtAuthenticationConverter.isNativeToken(jwt)) {
-            cachedUser = userRepository.findById(Long.valueOf(subject))
+            User user = userRepository.findById(Long.valueOf(subject))
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado para id: " + subject));
+            if (user.getDeletedAt() != null) {
+                throw new ResourceNotFoundException("Usuario no encontrado para id: " + subject);
+            }
+            cachedUser = user;
         } else {
-            cachedUser = userRepository.findBySupabaseUid(subject)
+            cachedUser = userRepository.findBySupabaseUidAndDeletedAtIsNull(subject)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado para uid: " + subject));
         }
 

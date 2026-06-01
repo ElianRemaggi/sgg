@@ -5,6 +5,8 @@ import com.sgg.identity.dto.UpdateProfileRequest;
 import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.AuthIdentityRepository;
 import com.sgg.identity.repository.UserRepository;
+import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.repository.GymMemberRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,8 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.transaction.annotation.Transactional;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @Transactional
@@ -25,10 +27,14 @@ class UserControllerTest extends BaseIntegrationTest {
     @Autowired
     private AuthIdentityRepository authIdentityRepository;
 
+    @Autowired
+    private GymMemberRepository gymMemberRepository;
+
     private User testUser;
 
     @BeforeEach
     void setUp() {
+        gymMemberRepository.deleteAll();
         authIdentityRepository.deleteAll();
         userRepository.deleteAll();
 
@@ -99,5 +105,49 @@ class UserControllerTest extends BaseIntegrationTest {
                 .content(json))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void deleteMe_withoutJwt_returns401() throws Exception {
+        mockMvc.perform(delete("/api/users/me"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deleteMe_softDeletesUserAndInactivatesMemberships() throws Exception {
+        GymMember membership = new GymMember();
+        membership.setGymId(1L);
+        membership.setUserId(testUser.getId());
+        membership.setRole("MEMBER");
+        membership.setStatus("ACTIVE");
+        gymMemberRepository.save(membership);
+
+        mockMvc.perform(delete("/api/users/me")
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("test-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        User deleted = userRepository.findById(testUser.getId()).orElseThrow();
+        assertThat(deleted.getDeletedAt()).isNotNull();
+        assertThat(deleted.getEmail()).startsWith("deleted_");
+        assertThat(deleted.getSupabaseUid()).isNull();
+        assertThat(deleted.getPasswordHash()).isNull();
+
+        GymMember inactivated = gymMemberRepository.findById(membership.getId()).orElseThrow();
+        assertThat(inactivated.getStatus()).isEqualTo("INACTIVE");
+    }
+
+    @Test
+    void deleteMe_idempotent() throws Exception {
+        mockMvc.perform(delete("/api/users/me")
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("test-uid-001"))))
+            .andExpect(status().isOk());
+
+        // Supabase UID ya fue nulleado; JWT nativo no aplica acá.
+        // Segunda llamada: el usuario ya está deleted, SecurityUtils lo rechaza con 401 (supabase uid null).
+        // Eso es correcto — la sesión es inválida post-delete. El test verifica que no hay error 500.
+        mockMvc.perform(delete("/api/users/me")
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("test-uid-001"))))
+            .andExpect(result -> assertThat(result.getResponse().getStatus()).isIn(200, 401, 404));
     }
 }

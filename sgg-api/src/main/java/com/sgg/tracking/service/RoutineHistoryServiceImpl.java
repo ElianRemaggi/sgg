@@ -4,13 +4,10 @@ import com.sgg.common.exception.ResourceNotFoundException;
 import com.sgg.tracking.dto.*;
 import com.sgg.tracking.entity.ExerciseCompletion;
 import com.sgg.tracking.repository.ExerciseCompletionRepository;
-import com.sgg.training.entity.RoutineAssignment;
-import com.sgg.training.entity.TemplateBlock;
-import com.sgg.training.entity.TemplateExercise;
-import com.sgg.training.repository.RoutineAssignmentRepository;
-import com.sgg.training.repository.RoutineTemplateRepository;
-import com.sgg.training.repository.TemplateBlockRepository;
-import com.sgg.training.repository.TemplateExerciseRepository;
+import com.sgg.training.dto.AssignmentInfo;
+import com.sgg.training.dto.BlockWithExercisesInfo;
+import com.sgg.training.dto.ExerciseWithBlockInfo;
+import com.sgg.training.service.RoutineQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,77 +25,74 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class RoutineHistoryServiceImpl implements RoutineHistoryService {
 
-    private final RoutineAssignmentRepository assignmentRepository;
-    private final RoutineTemplateRepository templateRepository;
-    private final TemplateBlockRepository blockRepository;
-    private final TemplateExerciseRepository exerciseRepository;
+    private final RoutineQueryService routineQueryService;
     private final ExerciseCompletionRepository completionRepository;
 
     @Override
     public List<AssignmentHistorySummaryDto> getMemberHistory(Long gymId, Long userId) {
-        List<RoutineAssignment> assignments = assignmentRepository
-                .findByMemberUserIdAndGymIdOrderByStartsAtDesc(userId, gymId);
+        List<AssignmentInfo> assignments = routineQueryService.findMemberAssignments(userId, gymId);
+        if (assignments.isEmpty()) return List.of();
+
+        List<Long> templateIds = assignments.stream().map(AssignmentInfo::templateId).distinct().toList();
+        Map<Long, String> templateNames = routineQueryService.findTemplateNames(templateIds);
+
+        List<Long> assignmentIds = assignments.stream().map(AssignmentInfo::id).toList();
+        Map<Long, ExerciseCompletionRepository.AssignmentStatsRow> statsMap =
+                completionRepository.findStatsBatch(userId, assignmentIds).stream()
+                        .collect(Collectors.toMap(
+                                ExerciseCompletionRepository.AssignmentStatsRow::getAssignmentId, s -> s));
 
         return assignments.stream()
-                .map(a -> buildSummary(a, userId))
+                .map(a -> {
+                    String name = templateNames.getOrDefault(a.templateId(), "Plantilla eliminada");
+                    ExerciseCompletionRepository.AssignmentStatsRow stats = statsMap.get(a.id());
+                    long sessionDays = stats != null ? stats.getSessionDays() : 0L;
+                    long totalCompletions = stats != null ? stats.getTotalCompletions() : 0L;
+                    LocalDateTime lastActivityAt = stats != null ? stats.getLastActivityAt() : null;
+                    return new AssignmentHistorySummaryDto(
+                            a.id(), name, a.startsAt(), a.endsAt(),
+                            isAssignmentActive(a), sessionDays, totalCompletions, lastActivityAt);
+                })
                 .toList();
     }
 
     @Override
     public AssignmentHistoryDetailDto getAssignmentDetail(Long gymId, Long userId, Long assignmentId) {
-        RoutineAssignment assignment = findAssignmentForUser(assignmentId, userId, gymId);
+        AssignmentInfo assignment = findAssignmentForUser(assignmentId, userId, gymId);
 
-        String templateName = templateRepository.findById(assignment.getTemplateId())
-                .map(t -> t.getName())
-                .orElse("Plantilla eliminada");
+        String templateName = routineQueryService.findTemplateNames(List.of(assignment.templateId()))
+                .getOrDefault(assignment.templateId(), "Plantilla eliminada");
 
-        List<TemplateBlock> blocks = blockRepository
-                .findByTemplateIdOrderBySortOrder(assignment.getTemplateId());
-
-        List<Long> blockIds = blocks.stream().map(TemplateBlock::getId).toList();
-        List<TemplateExercise> allExercises = blockIds.isEmpty()
-                ? List.of()
-                : exerciseRepository.findByBlockIdInOrderBySortOrder(blockIds);
-
-        Map<Long, List<TemplateExercise>> exercisesByBlock = allExercises.stream()
-                .collect(Collectors.groupingBy(TemplateExercise::getBlockId));
+        List<BlockWithExercisesInfo> blocks = routineQueryService.findBlocksWithExercises(assignment.templateId());
 
         List<ExerciseCompletion> allCompletions = completionRepository
                 .findByAssignmentIdAndUserIdOrderBySessionDateAsc(assignmentId, userId);
-
         Map<Long, List<ExerciseCompletion>> completionsByExercise = allCompletions.stream()
                 .collect(Collectors.groupingBy(ExerciseCompletion::getExerciseId));
 
         List<HistoryBlockDto> historyBlocks = blocks.stream()
                 .map(block -> {
-                    List<TemplateExercise> exercises = exercisesByBlock.getOrDefault(block.getId(), List.of());
-                    List<HistoryExerciseSummaryDto> exerciseSummaries = exercises.stream()
-                            .map(ex -> buildExerciseSummary(ex, completionsByExercise.getOrDefault(ex.getId(), List.of())))
+                    List<HistoryExerciseSummaryDto> summaries = block.exercises().stream()
+                            .map(ex -> buildExerciseSummary(ex.id(), ex.name(),
+                                    completionsByExercise.getOrDefault(ex.id(), List.of())))
                             .toList();
-                    return new HistoryBlockDto(block.getId(), block.getName(), block.getDayNumber(), exerciseSummaries);
+                    return new HistoryBlockDto(block.id(), block.name(), block.dayNumber(), summaries);
                 })
                 .toList();
 
-        HistoryStatsDto stats = buildHistoryStats(assignmentId, userId, allCompletions);
-        boolean isActive = isAssignmentActive(assignment);
-
         return new AssignmentHistoryDetailDto(
-                assignment.getId(), templateName, assignment.getStartsAt(), assignment.getEndsAt(),
-                isActive, historyBlocks, stats);
+                assignment.id(), templateName, assignment.startsAt(), assignment.endsAt(),
+                isAssignmentActive(assignment), historyBlocks, buildHistoryStats(allCompletions));
     }
 
     @Override
     public ExerciseProgressDto getExerciseProgress(Long gymId, Long userId, Long assignmentId, Long exerciseId) {
-        RoutineAssignment assignment = findAssignmentForUser(assignmentId, userId, gymId);
+        AssignmentInfo assignment = findAssignmentForUser(assignmentId, userId, gymId);
 
-        TemplateExercise exercise = exerciseRepository.findById(exerciseId)
+        ExerciseWithBlockInfo exerciseInfo = routineQueryService.findExerciseWithBlock(exerciseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ejercicio no encontrado"));
 
-        TemplateBlock block = blockRepository.findById(exercise.getBlockId())
-                .orElseThrow(() -> new ResourceNotFoundException("Bloque no encontrado"));
-
-        // Validar que el ejercicio pertenece a la plantilla de la asignación
-        if (!block.getTemplateId().equals(assignment.getTemplateId())) {
+        if (!exerciseInfo.templateId().equals(assignment.templateId())) {
             throw new ResourceNotFoundException("El ejercicio no pertenece a esta rutina");
         }
 
@@ -111,121 +105,81 @@ public class RoutineHistoryServiceImpl implements RoutineHistoryService {
                         c.getNotes(), c.getIsCompleted(), c.getCompletedAt()))
                 .toList();
 
-        ExerciseStatsDto stats = buildExerciseStats(completions);
-
         return new ExerciseProgressDto(
-                exercise.getId(), exercise.getName(),
-                block.getName(), block.getDayNumber(),
-                sessions, stats);
+                exerciseId, exerciseInfo.exerciseName(),
+                exerciseInfo.blockName(), exerciseInfo.dayNumber(),
+                sessions, buildExerciseStats(completions));
     }
 
-    private RoutineAssignment findAssignmentForUser(Long assignmentId, Long userId, Long gymId) {
-        RoutineAssignment assignment = assignmentRepository.findById(assignmentId)
+    private AssignmentInfo findAssignmentForUser(Long assignmentId, Long userId, Long gymId) {
+        AssignmentInfo assignment = routineQueryService.findAssignmentById(assignmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Rutina no encontrada"));
-
-        if (!assignment.getMemberUserId().equals(userId) || !assignment.getGymId().equals(gymId)) {
+        if (!assignment.memberUserId().equals(userId) || !assignment.gymId().equals(gymId)) {
             throw new ResourceNotFoundException("Rutina no encontrada");
         }
         return assignment;
     }
 
-    private AssignmentHistorySummaryDto buildSummary(RoutineAssignment assignment, Long userId) {
-        String templateName = templateRepository.findById(assignment.getTemplateId())
-                .map(t -> t.getName())
-                .orElse("Plantilla eliminada");
-
-        long sessionDays = completionRepository.countDistinctSessionDays(assignment.getId(), userId);
-        long totalCompletions = completionRepository.countTotalCompletionsByAssignment(assignment.getId(), userId);
-        LocalDateTime lastActivityAt = completionRepository
-                .findLastActivityAt(assignment.getId(), userId)
-                .orElse(null);
-
-        return new AssignmentHistorySummaryDto(
-                assignment.getId(), templateName, assignment.getStartsAt(), assignment.getEndsAt(),
-                isAssignmentActive(assignment), sessionDays, totalCompletions, lastActivityAt);
+    private boolean isAssignmentActive(AssignmentInfo assignment) {
+        LocalDateTime now = LocalDateTime.now();
+        return assignment.startsAt().isBefore(now)
+                && (assignment.endsAt() == null || assignment.endsAt().isAfter(now));
     }
 
-    private HistoryExerciseSummaryDto buildExerciseSummary(TemplateExercise exercise, List<ExerciseCompletion> completions) {
+    private HistoryExerciseSummaryDto buildExerciseSummary(Long exerciseId, String exerciseName,
+                                                            List<ExerciseCompletion> completions) {
         List<ExerciseCompletion> completed = completions.stream()
-                .filter(ExerciseCompletion::getIsCompleted)
-                .toList();
+                .filter(ExerciseCompletion::getIsCompleted).toList();
 
-        long sessionsCount = completed.size();
         BigDecimal bestWeight = completed.stream()
-                .map(ExerciseCompletion::getWeightKg)
-                .filter(w -> w != null)
-                .max(Comparator.naturalOrder())
-                .orElse(null);
-        BigDecimal avgWeight = completed.stream()
-                .map(ExerciseCompletion::getWeightKg)
-                .filter(w -> w != null)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .map(ExerciseCompletion::getWeightKg).filter(w -> w != null)
+                .max(Comparator.naturalOrder()).orElse(null);
         long withWeight = completed.stream().filter(c -> c.getWeightKg() != null).count();
-        BigDecimal avg = withWeight > 0 ? avgWeight.divide(BigDecimal.valueOf(withWeight), 2, RoundingMode.HALF_UP) : null;
+        BigDecimal avg = withWeight > 0
+                ? completed.stream().map(ExerciseCompletion::getWeightKg).filter(w -> w != null)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .divide(BigDecimal.valueOf(withWeight), 2, RoundingMode.HALF_UP)
+                : null;
+        BigDecimal lastWeight = completed.isEmpty() ? null : completed.getLast().getWeightKg();
 
-        BigDecimal lastWeight = completed.isEmpty() ? null
-                : completed.getLast().getWeightKg();
-
-        return new HistoryExerciseSummaryDto(exercise.getId(), exercise.getName(), sessionsCount, bestWeight, avg, lastWeight);
+        return new HistoryExerciseSummaryDto(exerciseId, exerciseName, completed.size(), bestWeight, avg, lastWeight);
     }
 
-    private HistoryStatsDto buildHistoryStats(Long assignmentId, Long userId, List<ExerciseCompletion> allCompletions) {
+    private HistoryStatsDto buildHistoryStats(List<ExerciseCompletion> allCompletions) {
         List<ExerciseCompletion> completed = allCompletions.stream()
-                .filter(ExerciseCompletion::getIsCompleted)
-                .toList();
+                .filter(ExerciseCompletion::getIsCompleted).toList();
 
-        long distinctDays = completed.stream()
-                .map(ExerciseCompletion::getSessionDate)
-                .distinct()
-                .count();
-        LocalDateTime firstActivity = completed.stream()
-                .map(ExerciseCompletion::getCompletedAt)
-                .min(Comparator.naturalOrder())
-                .orElse(null);
-        LocalDateTime lastActivity = completed.stream()
-                .map(ExerciseCompletion::getCompletedAt)
-                .max(Comparator.naturalOrder())
-                .orElse(null);
+        long distinctDays = completed.stream().map(ExerciseCompletion::getSessionDate).distinct().count();
+        LocalDateTime first = completed.stream().map(ExerciseCompletion::getCompletedAt)
+                .min(Comparator.naturalOrder()).orElse(null);
+        LocalDateTime last = completed.stream().map(ExerciseCompletion::getCompletedAt)
+                .max(Comparator.naturalOrder()).orElse(null);
 
-        return new HistoryStatsDto(distinctDays, completed.size(), firstActivity, lastActivity);
+        return new HistoryStatsDto(distinctDays, completed.size(), first, last);
     }
 
     private ExerciseStatsDto buildExerciseStats(List<ExerciseCompletion> completions) {
         List<ExerciseCompletion> completed = completions.stream()
-                .filter(ExerciseCompletion::getIsCompleted)
-                .toList();
-
-        long sessionsCount = completed.size();
+                .filter(ExerciseCompletion::getIsCompleted).toList();
 
         List<BigDecimal> weights = completed.stream()
-                .map(ExerciseCompletion::getWeightKg)
-                .filter(w -> w != null)
-                .toList();
+                .map(ExerciseCompletion::getWeightKg).filter(w -> w != null).toList();
 
         BigDecimal best = weights.stream().max(Comparator.naturalOrder()).orElse(null);
-        BigDecimal first = completed.isEmpty() ? null : completed.getFirst().getWeightKg();
-        BigDecimal last = completed.isEmpty() ? null : completed.getLast().getWeightKg();
-
-        BigDecimal avg = null;
-        if (!weights.isEmpty()) {
-            avg = weights.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
-                    .divide(BigDecimal.valueOf(weights.size()), 2, RoundingMode.HALF_UP);
-        }
+        BigDecimal firstWeight = completed.isEmpty() ? null : completed.getFirst().getWeightKg();
+        BigDecimal lastWeight = completed.isEmpty() ? null : completed.getLast().getWeightKg();
+        BigDecimal avg = weights.isEmpty() ? null
+                : weights.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .divide(BigDecimal.valueOf(weights.size()), 2, RoundingMode.HALF_UP);
 
         Double delta = null;
-        if (first != null && last != null && first.compareTo(BigDecimal.ZERO) > 0) {
-            delta = last.subtract(first)
-                    .divide(first, 4, RoundingMode.HALF_UP)
+        if (firstWeight != null && lastWeight != null && firstWeight.compareTo(BigDecimal.ZERO) > 0) {
+            delta = lastWeight.subtract(firstWeight)
+                    .divide(firstWeight, 4, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100))
                     .doubleValue();
         }
 
-        return new ExerciseStatsDto(sessionsCount, best, avg, first, last, delta);
-    }
-
-    private boolean isAssignmentActive(RoutineAssignment assignment) {
-        LocalDateTime now = LocalDateTime.now();
-        return assignment.getStartsAt().isBefore(now)
-                && (assignment.getEndsAt() == null || assignment.getEndsAt().isAfter(now));
+        return new ExerciseStatsDto(completed.size(), best, avg, firstWeight, lastWeight, delta);
     }
 }

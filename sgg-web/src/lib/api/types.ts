@@ -191,6 +191,7 @@ export interface TrackingProgressDto {
   progressPercent: number
   lastActivityAt: string | null
   completions: ExerciseCompletionDto[]
+  previousNotesByExerciseId: Record<number, string>
   currentDayNumber?: number
   currentBlockName?: string
   totalExercisesToday?: number

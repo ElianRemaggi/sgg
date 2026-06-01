@@ -120,6 +120,7 @@ export function RoutineTrackingView({ gymId, routine, progress }: RoutineTrackin
                   assignmentId={routine.assignmentId}
                   exercise={exercise}
                   completion={completionMap.get(exercise.id)}
+                  previousNotes={progress?.previousNotesByExerciseId[exercise.id] ?? null}
                 />
               ))}
             </div>

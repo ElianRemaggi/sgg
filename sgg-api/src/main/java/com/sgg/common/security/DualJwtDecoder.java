@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
@@ -24,7 +25,9 @@ public class DualJwtDecoder implements JwtDecoder {
         this.nativeDecoder = NimbusJwtDecoder.withSecretKey(nativeJwtConfig.getKey())
                 .macAlgorithm(MacAlgorithm.HS384)
                 .build();
-        this.supabaseDecoder = NimbusJwtDecoder.withJwkSetUri(jwksUri).build();
+        this.supabaseDecoder = NimbusJwtDecoder.withJwkSetUri(jwksUri)
+                .jwsAlgorithm(SignatureAlgorithm.ES256)
+                .build();
     }
 
     @Override

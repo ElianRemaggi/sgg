@@ -125,6 +125,7 @@ export const aTracking = (overrides: Partial<TrackingProgressDto> = {}): Trackin
   progressPercent: 33,
   lastActivityAt: null,
   completions: [],
+  previousNotesByExerciseId: {},
   currentDayNumber: 1,
   currentBlockName: 'Push',
   totalExercisesToday: 3,
