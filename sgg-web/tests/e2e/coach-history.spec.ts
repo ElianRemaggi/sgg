@@ -52,7 +52,7 @@ test.describe('Coach — member history', () => {
     await expect(page).toHaveURL(/\/exercises\/\d+/, { timeout: 8_000 })
     await page.waitForLoadState('networkidle')
 
-    await expect(page.locator('svg')).toBeVisible()
+    await expect(page.locator('svg.w-full')).toBeVisible()
     await expect(page.getByText(/mejor peso/i)).toBeVisible()
   })
 })

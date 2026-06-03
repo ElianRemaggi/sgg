@@ -47,6 +47,6 @@ test.describe('Member — history navigation', () => {
 
     await expect(page.getByRole('heading', { name: /press banca/i })).toBeVisible()
     // Chart should be rendered
-    await expect(page.locator('svg')).toBeVisible()
+    await expect(page.locator('svg.w-full')).toBeVisible()
   })
 })

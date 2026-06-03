@@ -26,47 +26,24 @@ test.describe('Member — routine tracking', () => {
   })
 
   test('completing an exercise calls the tracking API', async ({ page }) => {
-    const completeRequests: string[] = []
-    await page.route(`**/member/tracking/complete`, route => {
-      completeRequests.push(route.request().url())
-      return route.fulfill({ json: { success: true } })
-    })
-
-    // Expand first exercise
-    const expandBtns = page.locator('button').filter({ has: page.locator('svg') }).first()
-    await expandBtns.click()
+    // Expand first exercise (button contains ChevronDown icon)
+    const expandBtn = page.locator('button').filter({ has: page.locator('.lucide-chevron-down') }).first()
+    await expandBtn.click()
 
     // Fill weight and click complete
     await page.getByPlaceholder(/ej: 60/i).fill('80')
     await page.getByRole('button', { name: /completar/i }).click()
 
-    await expect(async () => {
-      expect(completeRequests.length).toBeGreaterThan(0)
-    }).toPass({ timeout: 5_000 })
+    // Server action succeeds → success toast is shown
+    await expect(page.getByText(/ejercicio completado/i)).toBeVisible({ timeout: 5_000 })
   })
 
   test('switching day tab shows different block', async ({ page }) => {
-    const routine = {
-      assignmentId: 1,
-      templateName: 'Test Routine',
-      startsAt: '2026-01-01',
-      endsAt: null,
-      blocks: [
-        { id: 1, name: 'Push', dayNumber: 1, sortOrder: 1, exercises: [{ id: 1, name: 'Press Banca', sets: 4, reps: '8-10', restSeconds: 90, notes: null, sortOrder: 1 }] },
-        { id: 2, name: 'Pull', dayNumber: 2, sortOrder: 2, exercises: [{ id: 2, name: 'Dominadas', sets: 4, reps: '6-8', restSeconds: 90, notes: null, sortOrder: 1 }] },
-      ],
-    }
-
-    await page.route(`**/member/routine`, route =>
-      route.fulfill({ json: { success: true, data: routine } })
-    )
-    await page.reload()
-    await page.waitForLoadState('networkidle')
-
+    // Global mock returns 2 blocks: Push (day 1) and Pull (day 2)
     await expect(page.getByText('Press Banca')).toBeVisible()
 
     await page.getByRole('button', { name: /día 2/i }).click()
     await expect(page.getByText('Dominadas')).toBeVisible()
-    await expect(page.queryByText('Press Banca')).not.toBeVisible()
+    await expect(page.getByText('Press Banca')).not.toBeVisible()
   })
 })

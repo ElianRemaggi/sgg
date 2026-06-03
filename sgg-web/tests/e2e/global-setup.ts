@@ -66,13 +66,21 @@ export default async function globalSetup(_config: FullConfig) {
       templateName: 'Hipertrofia Vol. A',
       startsAt: '2026-01-01T00:00:00Z',
       endsAt: null,
-      blocks: [{
-        id: 10, name: 'Push', dayNumber: 1, sortOrder: 1,
-        exercises: [
-          { id: 1, name: 'Press Banca', sets: 4, reps: '8-10', restSeconds: 90, notes: null, sortOrder: 1 },
-          { id: 2, name: 'Press Hombros', sets: 3, reps: '10-12', restSeconds: 60, notes: null, sortOrder: 2 },
-        ],
-      }],
+      blocks: [
+        {
+          id: 10, name: 'Push', dayNumber: 1, sortOrder: 1,
+          exercises: [
+            { id: 1, name: 'Press Banca', sets: 4, reps: '8-10', restSeconds: 90, notes: null, sortOrder: 1 },
+            { id: 2, name: 'Press Hombros', sets: 3, reps: '10-12', restSeconds: 60, notes: null, sortOrder: 2 },
+          ],
+        },
+        {
+          id: 11, name: 'Pull', dayNumber: 2, sortOrder: 2,
+          exercises: [
+            { id: 3, name: 'Dominadas', sets: 4, reps: '6-8', restSeconds: 90, notes: null, sortOrder: 1 },
+          ],
+        },
+      ],
     }
 
     if (url.match(/\/member\/routine$/) && !url.includes('history')) {
@@ -82,7 +90,7 @@ export default async function globalSetup(_config: FullConfig) {
     if (url.includes('/tracking/progress')) {
       return respond(res, {
         success: true,
-        data: { assignmentId: 1, totalExercises: 2, completedToday: 0, completedTotal: 0, progressPercent: 0, lastActivityAt: null, completions: [], currentDayNumber: 1, currentBlockName: 'Push', totalExercisesToday: 2 },
+        data: { assignmentId: 1, totalExercises: 2, completedToday: 0, completedTotal: 0, progressPercent: 0, lastActivityAt: null, completions: [], currentDayNumber: 1, currentBlockName: 'Push', totalExercisesToday: 2, previousNotesByExerciseId: {} },
       })
     }
 
