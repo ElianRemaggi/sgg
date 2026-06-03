@@ -10,7 +10,12 @@ export class ApiError extends Error {
 }
 
 async function getAuthToken(): Promise<string | null> {
-  // Try Supabase session first
+  // Native token takes priority — avoids Supabase session bleeding across accounts
+  const cookieStore = cookies()
+  const nativeToken = cookieStore.get('sgg-token')?.value
+  if (nativeToken) return nativeToken
+
+  // Fallback to Supabase session (Google login)
   try {
     const supabase = createClient()
     const { data: { session } } = await supabase.auth.getSession()
@@ -18,13 +23,10 @@ async function getAuthToken(): Promise<string | null> {
       return session.access_token
     }
   } catch {
-    // Supabase not available, try native token
+    // Supabase not available
   }
 
-  // Fallback to native token cookie
-  const cookieStore = cookies()
-  const nativeToken = cookieStore.get('sgg-token')?.value
-  return nativeToken || null
+  return null
 }
 
 export async function apiClient<T>(

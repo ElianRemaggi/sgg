@@ -30,6 +30,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/gyms/search").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/gyms/search/by-name").permitAll()
                 .requestMatchers("/api/platform/**").hasRole("SUPERADMIN")
                 .anyRequest().authenticated()
             )

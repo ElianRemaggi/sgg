@@ -18,6 +18,7 @@ function getHomeForMembership(m: MembershipDto): string {
 export default async function SelectGymPage() {
   let memberships: MembershipDto[] = []
   let isSuperadmin = false
+  let currentUser: UserDto | null = null
 
   try {
     const [membershipsRes, userRes] = await Promise.all([
@@ -25,6 +26,7 @@ export default async function SelectGymPage() {
       apiClient<ApiResponse<UserDto>>('/api/users/me'),
     ])
     memberships = membershipsRes.data
+    currentUser = userRes.data
     isSuperadmin = userRes.data.platformRole === 'SUPERADMIN'
   } catch {
     // If API fails, show empty state
@@ -38,6 +40,12 @@ export default async function SelectGymPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="w-full max-w-2xl p-6">
+        {currentUser && (
+          <p className="mb-2 text-center text-sm text-muted-foreground">
+            Bienvenido, <span className="font-medium text-foreground">{currentUser.fullName}</span>
+            <span className="ml-1 text-xs">({currentUser.email})</span>
+          </p>
+        )}
         <h1 className="mb-6 text-2xl font-bold text-center">Seleccioná tu gym</h1>
 
         {isSuperadmin && (
