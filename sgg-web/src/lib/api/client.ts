@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 
-const API_BASE = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL
+export const API_BASE = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL
 
 export class ApiError extends Error {
   constructor(public status: number, public body: { message?: string; errors?: string[] }) {
@@ -9,7 +9,7 @@ export class ApiError extends Error {
   }
 }
 
-async function getAuthToken(): Promise<string | null> {
+export async function getAuthToken(): Promise<string | null> {
   // Native token takes priority — avoids Supabase session bleeding across accounts
   const cookieStore = cookies()
   const nativeToken = cookieStore.get('sgg-token')?.value
