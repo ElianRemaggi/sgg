@@ -7,7 +7,7 @@ import { deleteTemplate } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Dumbbell, Plus, Pencil, Trash2, Download, FileSpreadsheet, FileText } from 'lucide-react'
+import { Dumbbell, Plus, Pencil, Trash2, FileSpreadsheet } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -15,12 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { useToast } from '@/components/ui/toast'
 
 interface TemplatesViewProps {
@@ -84,28 +78,15 @@ export function TemplatesView({ templates, gymId }: TemplatesViewProps) {
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-lg">{template.name}</CardTitle>
                   <div className="flex gap-1">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-                        title="Exportar rutina"
-                      >
-                        <Download className="h-4 w-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => { window.location.href = `/api/gyms/${gymId}/templates/${template.id}/export?format=xlsx` }}
-                        >
-                          <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" />
-                          Exportar a Excel
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => { window.location.href = `/api/gyms/${gymId}/templates/${template.id}/export?format=csv` }}
-                        >
-                          <FileText className="mr-2 h-4 w-4 text-blue-600" />
-                          Exportar a CSV
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Exportar a Excel"
+                      onClick={() => { window.location.href = `/api/gyms/${gymId}/templates/${template.id}/export?format=xlsx` }}
+                    >
+                      <FileSpreadsheet className="h-4 w-4 text-green-600" />
+                    </Button>
                     <Link href={`/gym/${gymId}/coach/templates/${template.id}/edit`}>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <Pencil className="h-4 w-4" />
