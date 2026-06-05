@@ -14,8 +14,6 @@ export function LoginForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const supabase = createClient()
-
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -59,6 +57,7 @@ export function LoginForm() {
     setLoading(true)
     setError('')
 
+    const supabase = createClient()
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

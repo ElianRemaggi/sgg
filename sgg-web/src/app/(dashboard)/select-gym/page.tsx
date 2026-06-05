@@ -6,6 +6,8 @@ import { GymSelector } from './gym-selector'
 import { GymSearch } from './gym-search'
 import { LogoutButton } from './logout-button'
 
+export const dynamic = 'force-dynamic'
+
 function getHomeForMembership(m: MembershipDto): string {
   if (['ADMIN', 'ADMIN_COACH'].includes(m.role)) {
     return `/gym/${m.gymId}/admin/members`
