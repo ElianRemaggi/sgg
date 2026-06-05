@@ -3,6 +3,7 @@ package com.sgg.common.config;
 import com.sgg.identity.entity.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.MacAlgorithm;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +13,8 @@ import java.util.Date;
 
 @Component
 public class NativeJwtConfig {
+
+    static final MacAlgorithm ALGORITHM = Jwts.SIG.HS256;
 
     private final SecretKey key;
     private final long expirationMs;
@@ -31,7 +34,7 @@ public class NativeJwtConfig {
                 .claim("email", user.getEmail())
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expirationMs))
-                .signWith(key)
+                .signWith(key, ALGORITHM)
                 .compact();
     }
 

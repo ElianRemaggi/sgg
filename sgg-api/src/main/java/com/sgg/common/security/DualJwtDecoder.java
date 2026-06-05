@@ -23,7 +23,7 @@ public class DualJwtDecoder implements JwtDecoder {
     public DualJwtDecoder(NativeJwtConfig nativeJwtConfig,
                           @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String jwksUri) {
         this.nativeDecoder = NimbusJwtDecoder.withSecretKey(nativeJwtConfig.getKey())
-                .macAlgorithm(MacAlgorithm.HS384)
+                .macAlgorithm(MacAlgorithm.HS256)
                 .build();
         this.supabaseDecoder = NimbusJwtDecoder.withJwkSetUri(jwksUri)
                 .jwsAlgorithm(SignatureAlgorithm.ES256)

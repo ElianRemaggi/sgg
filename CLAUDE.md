@@ -56,7 +56,7 @@ sgg/
 - **Roles**: dos dimensiones independientes:
   - `users.platform_role`: `USER` | `SUPERADMIN` (global)
   - `gym_members.role`: `MEMBER` | `COACH` | `ADMIN` | `ADMIN_COACH` (por gym)
-- **Auth**: Supabase emite JWT → Spring Security los valida. También soporta auth nativa (email/password) con JWT firmado HS384 (ver `NativeAuthController`). `DualJwtDecoder` intenta decodificar primero con el secreto nativo (HS384) y si falla prueba con Supabase JWKS.
+- **Auth**: Supabase emite JWT → Spring Security los valida. También soporta auth nativa (email/password) con JWT firmado HS256 (ver `NativeAuthController`). `DualJwtDecoder` intenta decodificar primero con el secreto nativo (HS256) y si falla prueba con Supabase JWKS.
 - **Multi-tenancy impl**: `TenantContext` (ThreadLocal) almacena `gym_id` actual. `TenantInterceptor` extrae `gymId` del path `/api/gyms/{gymId}/**` y valida acceso. Hibernate `@FilterDef` aplica `WHERE gym_id = :gymId` automáticamente.
 - **Clientes**: Next.js (admin/coach/superadmin) y React Native (members). Misma API, distintos endpoints por rol.
 - **Key libs backend**: Lombok, MapStruct 1.6 (DTO mapping), Testcontainers 1.19 (tests de integración).

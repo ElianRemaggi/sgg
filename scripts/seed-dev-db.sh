@@ -519,7 +519,7 @@ UNION ALL SELECT 'routine_assignments',COUNT(*) FROM routine_assignments
 UNION ALL SELECT 'exercise_completions',COUNT(*) FROM exercise_completions;
 "
 echo ""
-echo "Credenciales (contraseña: p1qwas?):"
+echo "Credenciales (contraseña: p1qwas):"
 echo "  superadmin@sgg.com      → SUPERADMIN + ADMIN en GymTest"
 echo "  owner@sgg.com           → ADMIN en GymTest  (tiene rutina Elian asignada)"
 echo "  coach@sgg.com           → COACH en GymTest"
