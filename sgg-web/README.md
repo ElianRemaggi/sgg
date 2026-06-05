@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# sgg-web — Panel Web de SGG
 
-## Getting Started
+Panel de administración y gestión para gimnasios, construido con **Next.js 14 App Router**.
 
-First, run the development server:
+---
+
+## Desarrollo local
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # Corre en http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+O vía Docker (stack completo):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Desde la raíz del monorepo
+docker-compose up
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Variables de entorno
 
-To learn more about Next.js, take a look at the following resources:
+Copiar `.env.example` en la raíz del monorepo y completar:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variable | Descripción |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | URL del backend (default: `http://localhost:8080`) |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon key de Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (solo server-side, nunca exponer) |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Tests
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm test                  # Unit/integration (Vitest)
+npm run test:watch        # Watch mode
+npm run test:coverage     # Con cobertura
+npm run test:e2e          # E2E (Playwright)
+npx playwright install chromium  # Instalar browser para E2E (una sola vez)
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Despliegue a producción
+
+La producción corre en Docker Compose detrás de un tunnel Cloudflared:
+
+```bash
+# Desde la raíz del monorepo
+docker-compose -f docker-compose.yml up --build -d
+```
+
+Ver `docs/infrastructure/INFRA.md` para detalles de infraestructura.
