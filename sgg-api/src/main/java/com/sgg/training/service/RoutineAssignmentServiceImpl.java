@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -137,6 +138,16 @@ public class RoutineAssignmentServiceImpl implements RoutineAssignmentService {
             assignment.getEndsAt(),
             blockDtos
         );
+    }
+
+    @Override
+    public void finishActiveRoutine(Long gymId, Long memberUserId) {
+        RoutineAssignment assignment = assignmentRepository.findActiveByMemberAndGym(memberUserId, gymId)
+            .orElseThrow(() -> new com.sgg.common.exception.ResourceNotFoundException("No tenés una rutina activa"));
+        assignment.setEndsAt(LocalDateTime.now().minusSeconds(1));
+        assignmentRepository.save(assignment);
+        log.info("Rutina finalizada manualmente: assignmentId={}, gymId={}, memberUserId={}",
+            assignment.getId(), gymId, memberUserId);
     }
 
     // BUG-02/03 fix: batch fetch templates and users to avoid N+1

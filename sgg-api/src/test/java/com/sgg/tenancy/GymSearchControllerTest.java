@@ -143,6 +143,56 @@ class GymSearchControllerTest extends BaseIntegrationTest {
             .andExpect(status().isUnauthorized());
     }
 
+    // ─── PERSONAL gym invisibility ────────────────────────────────────────
+
+    @Test
+    void searchBySlug_personalGym_returns404() throws Exception {
+        Gym personalGym = new Gym();
+        personalGym.setName("Entrenamiento personal");
+        personalGym.setSlug("personal-" + owner.getId());
+        personalGym.setOwnerUserId(owner.getId());
+        personalGym.setStatus("ACTIVE");
+        personalGym.setType("PERSONAL");
+        gymRepository.save(personalGym);
+
+        mockMvc.perform(get("/api/gyms/search").param("slug", "personal-" + owner.getId()))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void searchByName_personalGym_notIncluded() throws Exception {
+        Gym personalGym = new Gym();
+        personalGym.setName("Entrenamiento personal");
+        personalGym.setSlug("personal-" + owner.getId());
+        personalGym.setOwnerUserId(owner.getId());
+        personalGym.setStatus("ACTIVE");
+        personalGym.setType("PERSONAL");
+        gymRepository.save(personalGym);
+
+        createActiveGym("Entrenamiento Grupal", "entrenamiento-grupal");
+
+        mockMvc.perform(get("/api/gyms/search/by-name").param("q", "Entrenamiento")
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("owner-uid-001"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].name").value("Entrenamiento Grupal"));
+    }
+
+    @Test
+    void gymInfo_personalGym_returns404() throws Exception {
+        Gym personalGym = new Gym();
+        personalGym.setName("Entrenamiento personal");
+        personalGym.setSlug("personal-" + owner.getId());
+        personalGym.setOwnerUserId(owner.getId());
+        personalGym.setStatus("ACTIVE");
+        personalGym.setType("PERSONAL");
+        personalGym = gymRepository.save(personalGym);
+
+        mockMvc.perform(get("/api/gyms/{gymId}/info", personalGym.getId())
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("owner-uid-001"))))
+            .andExpect(status().isNotFound());
+    }
+
     private Gym createActiveGym(String name, String slug) {
         Gym gym = new Gym();
         gym.setName(name);

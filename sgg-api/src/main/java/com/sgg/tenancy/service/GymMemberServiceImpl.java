@@ -144,7 +144,7 @@ public class GymMemberServiceImpl implements GymMemberService {
                 if (gym == null) return null;
                 return new MembershipDto(
                     m.getId(), gym.getId(), gym.getName(), gym.getSlug(), gym.getLogoUrl(),
-                    m.getRole(), m.getStatus(), m.getMembershipExpiresAt()
+                    gym.getType(), m.getRole(), m.getStatus(), m.getMembershipExpiresAt()
                 );
             })
             .filter(java.util.Objects::nonNull)

@@ -14,17 +14,25 @@ public interface GymRepository extends JpaRepository<Gym, Long> {
 
     Optional<Gym> findBySlugAndStatus(String slug, String status);
 
+    // Búsqueda pública: solo gyms STANDARD
+    Optional<Gym> findBySlugAndStatusAndType(String slug, String status, String type);
+
     Optional<Gym> findByIdAndDeletedAtIsNull(Long id);
 
     boolean existsBySlug(String slug);
 
     boolean existsBySlugAndIdNot(String slug, Long id);
 
-    List<Gym> findTop10ByNameContainingIgnoreCaseAndStatusAndDeletedAtIsNullOrderByNameAsc(String name, String status);
+    List<Gym> findTop10ByNameContainingIgnoreCaseAndStatusAndTypeAndDeletedAtIsNullOrderByNameAsc(
+        String name, String status, String type);
+
+    // Gym personal del usuario
+    Optional<Gym> findByOwnerUserIdAndType(Long ownerUserId, String type);
 
     @Query("""
         SELECT g FROM Gym g
-        WHERE (:status IS NULL OR g.status = :status)
+        WHERE g.type = 'STANDARD'
+        AND (:status IS NULL OR g.status = :status)
         AND (:search IS NULL OR LOWER(CAST(g.name AS String)) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))
              OR LOWER(CAST(g.slug AS String)) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')))
         ORDER BY g.createdAt DESC

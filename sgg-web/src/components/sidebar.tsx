@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Users, Settings, CalendarDays, Dumbbell, ClipboardList, LogOut, UserCircle, History } from 'lucide-react'
+import { Users, Settings, CalendarDays, Dumbbell, ClipboardList, LogOut, UserCircle, History, GraduationCap } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -11,6 +11,7 @@ interface SidebarProps {
   gymId: string
   gymName: string
   role: string
+  isPersonalGym?: boolean
 }
 
 type SectionColor = 'primary' | 'tertiary' | 'cyan'
@@ -41,17 +42,18 @@ const sectionConfig: Record<SectionColor, {
   },
 }
 
-export function Sidebar({ gymId, gymName, role }: SidebarProps) {
+export function Sidebar({ gymId, gymName, role, isPersonalGym = false }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
 
-  const isAdmin = role === 'ADMIN' || role === 'ADMIN_COACH'
-  const isCoach = role === 'COACH' || role === 'ADMIN_COACH'
-  const isMember = role === 'MEMBER'
+  const isAdmin = !isPersonalGym && (role === 'ADMIN' || role === 'ADMIN_COACH')
+  const isCoach = !isPersonalGym && (role === 'COACH' || role === 'ADMIN_COACH')
+  const isMember = !isPersonalGym && role === 'MEMBER'
 
   const adminLinks = [
     { href: `/gym/${gymId}/admin/members`, label: 'Miembros', icon: Users },
+    { href: `/gym/${gymId}/admin/coaches`, label: 'Coaches', icon: GraduationCap },
     { href: `/gym/${gymId}/admin/schedule`, label: 'Horarios', icon: CalendarDays },
     { href: `/gym/${gymId}/admin/settings`, label: 'Configuración', icon: Settings },
   ]
@@ -59,12 +61,20 @@ export function Sidebar({ gymId, gymName, role }: SidebarProps) {
   const coachLinks = [
     { href: `/gym/${gymId}/coach/templates`, label: 'Plantillas', icon: Dumbbell },
     { href: `/gym/${gymId}/coach/assign`, label: 'Asignar Rutina', icon: ClipboardList },
+    { href: `/gym/${gymId}/coach/my-members`, label: 'Mis Alumnos', icon: Users },
   ]
 
   const memberLinks = [
     { href: `/gym/${gymId}/member/routine`, label: 'Mi Rutina', icon: Dumbbell },
     { href: `/gym/${gymId}/member/history`, label: 'Historial', icon: History },
     { href: `/gym/${gymId}/member/schedule`, label: 'Horarios', icon: CalendarDays },
+    { href: `/gym/${gymId}/member/profile`, label: 'Perfil', icon: UserCircle },
+  ]
+
+  const personalLinks = [
+    { href: `/gym/${gymId}/coach/templates`, label: 'Mis Rutinas', icon: Dumbbell },
+    { href: `/gym/${gymId}/member/routine`, label: 'Entrenar', icon: ClipboardList },
+    { href: `/gym/${gymId}/member/history`, label: 'Historial', icon: History },
     { href: `/gym/${gymId}/member/profile`, label: 'Perfil', icon: UserCircle },
   ]
 
@@ -118,6 +128,15 @@ export function Sidebar({ gymId, gymName, role }: SidebarProps) {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+        {isPersonalGym && (
+          <div className="space-y-0.5">
+            <p className={cn('mb-2 px-3 text-xs font-semibold uppercase tracking-wider', sectionConfig.cyan.headerClass)}>
+              Entrenamiento Personal
+            </p>
+            {renderLinks(personalLinks, 'cyan')}
+          </div>
+        )}
+
         {isAdmin && (
           <div className="space-y-0.5">
             <p className={cn('mb-2 px-3 text-xs font-semibold uppercase tracking-wider', sectionConfig.primary.headerClass)}>

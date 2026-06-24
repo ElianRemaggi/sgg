@@ -14,7 +14,7 @@ public interface RoutineAssignmentRepository extends JpaRepository<RoutineAssign
         SELECT ra FROM RoutineAssignment ra
         WHERE ra.memberUserId = :memberUserId
         AND ra.gymId = :gymId
-        AND (ra.endsAt IS NULL OR ra.endsAt >= CURRENT_TIMESTAMP)
+        AND (ra.endsAt IS NULL OR ra.endsAt > CURRENT_TIMESTAMP)
         AND ra.startsAt <= CURRENT_TIMESTAMP
         ORDER BY ra.startsAt DESC
     """)
@@ -29,7 +29,7 @@ public interface RoutineAssignmentRepository extends JpaRepository<RoutineAssign
         SELECT CASE WHEN COUNT(ra) > 0 THEN true ELSE false END
         FROM RoutineAssignment ra
         WHERE ra.templateId = :templateId
-        AND (ra.endsAt IS NULL OR ra.endsAt >= CURRENT_TIMESTAMP)
+        AND (ra.endsAt IS NULL OR ra.endsAt > CURRENT_TIMESTAMP)
     """)
     boolean hasActiveAssignments(@Param("templateId") Long templateId);
 
@@ -38,11 +38,12 @@ public interface RoutineAssignmentRepository extends JpaRepository<RoutineAssign
         FROM RoutineAssignment ra
         WHERE ra.memberUserId = :memberUserId
         AND ra.gymId = :gymId
-        AND (ra.endsAt IS NULL OR ra.endsAt >= CURRENT_TIMESTAMP)
+        AND (ra.endsAt IS NULL OR ra.endsAt > CURRENT_TIMESTAMP)
         AND ra.startsAt <= CURRENT_TIMESTAMP
     """)
     boolean hasActiveAssignmentForMember(
         @Param("memberUserId") Long memberUserId,
         @Param("gymId") Long gymId
     );
+
 }

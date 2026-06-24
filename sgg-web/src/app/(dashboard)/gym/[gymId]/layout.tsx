@@ -11,21 +11,26 @@ export default async function GymLayout({
   children: React.ReactNode
   params: { gymId: string }
 }) {
-  let gym: GymDto | null = null
+  let gymName = 'Gym'
   let userRole = 'MEMBER'
+  let isPersonalGym = false
 
   try {
-    const gymRes = await apiClient<ApiResponse<GymDto>>(`/api/gyms/${params.gymId}/info`)
-    gym = gymRes.data
-
     const membershipsRes = await apiClient<ApiResponse<MembershipDto[]>>('/api/users/me/memberships')
     const membership = membershipsRes.data.find(
       m => m.gymId === Number(params.gymId) && m.status === 'ACTIVE'
     )
-    if (membership) {
-      userRole = membership.role
-    } else {
+    if (!membership) {
       redirect('/select-gym')
+    }
+
+    userRole = membership.role
+    gymName = membership.gymName
+    isPersonalGym = membership.gymType === 'PERSONAL'
+
+    if (!isPersonalGym) {
+      const gymRes = await apiClient<ApiResponse<GymDto>>(`/api/gyms/${params.gymId}/info`)
+      gymName = gymRes.data.name
     }
   } catch {
     redirect('/select-gym')
@@ -33,7 +38,14 @@ export default async function GymLayout({
 
   return (
     <SidebarShell
-      sidebar={<Sidebar gymId={params.gymId} gymName={gym?.name ?? 'Gym'} role={userRole} />}
+      sidebar={
+        <Sidebar
+          gymId={params.gymId}
+          gymName={gymName}
+          role={userRole}
+          isPersonalGym={isPersonalGym}
+        />
+      }
     >
       {children}
     </SidebarShell>

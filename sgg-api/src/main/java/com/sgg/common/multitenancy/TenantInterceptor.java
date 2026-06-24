@@ -47,10 +47,12 @@ public class TenantInterceptor implements HandlerInterceptor {
         Long gymId = Long.parseLong(matcher.group(1));
         String subPath = matcher.group(2);
 
-        gymRepository.findByIdAndDeletedAtIsNull(gymId)
+        com.sgg.tenancy.entity.Gym gym = gymRepository.findByIdAndDeletedAtIsNull(gymId)
             .orElseThrow(() -> new ResourceNotFoundException("Gym no encontrado"));
 
         TenantContext.setGymId(gymId);
+        TenantContext.setGymType(gym.getType());
+        TenantContext.setGymOwnerUserId(gym.getOwnerUserId());
         enableHibernateFilter(gymId);
 
         if (shouldSkipMembershipCheck(subPath)) {

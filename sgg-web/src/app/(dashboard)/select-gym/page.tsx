@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { GymSelector } from './gym-selector'
 import { GymSearch } from './gym-search'
 import { LogoutButton } from './logout-button'
+import { PersonalGymCreateButton } from './personal-gym-create-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,8 +36,11 @@ export default async function SelectGymPage() {
   }
 
   const activeMemberships = memberships.filter(m => m.status === 'ACTIVE')
-  if (!isSuperadmin && activeMemberships.length === 1) {
-    redirect(getHomeForMembership(activeMemberships[0]))
+  const standardMemberships = activeMemberships.filter(m => m.gymType !== 'PERSONAL')
+  const personalMembership = activeMemberships.find(m => m.gymType === 'PERSONAL')
+
+  if (!isSuperadmin && standardMemberships.length === 1) {
+    redirect(getHomeForMembership(standardMemberships[0]))
   }
 
   return (
@@ -61,12 +65,32 @@ export default async function SelectGymPage() {
           </div>
         )}
 
-        {memberships.length > 0 && (
+        {standardMemberships.length > 0 && (
           <div className="mb-8">
             <h2 className="mb-3 text-lg font-semibold">Mis gyms</h2>
-            <GymSelector memberships={memberships} />
+            <GymSelector memberships={standardMemberships} />
           </div>
         )}
+
+        <div className="mb-6">
+          <h2 className="mb-3 text-lg font-semibold">Entrenamiento personal</h2>
+          {personalMembership ? (
+            <Link
+              href={`/gym/${personalMembership.gymId}/member/routine`}
+              className="flex items-center gap-3 rounded-lg border p-4 hover:bg-surface-high transition-colors"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary-vivid/20 text-secondary-vivid text-lg font-bold">
+                🏋
+              </div>
+              <div>
+                <p className="font-medium">Entrenamiento Personal</p>
+                <p className="text-xs text-muted-foreground">Gestioná tus propias rutinas</p>
+              </div>
+            </Link>
+          ) : (
+            <PersonalGymCreateButton />
+          )}
+        </div>
 
         <div className="border-t pt-6">
           <h2 className="mb-3 text-lg font-semibold">Buscar gimnasio</h2>

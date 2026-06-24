@@ -178,6 +178,16 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 - [x] `seed-dev-db.sh`: reescrito para reflejar datos actuales (usuarios con `password_hash`, `username`, rutinas Push/Pull)
 - [ ] *(pendiente commit)* `select-gym/page.tsx`: auto-redirect role-aware para usuario con un solo gym activo (admin→members, coach→templates, member→routine)
 
+### Fase 9 — Módulo Coaching Frontend Web ✅
+- [x] Tipos TS: `CoachSummaryDto`, `CoachAssignmentDto`, `AssignedMemberDto` en `lib/api/types.ts`
+- [x] Sidebar: link "Coaches" en sección Admin → `/gym/{gymId}/admin/coaches`
+- [x] Sidebar: link "Mis Alumnos" en sección Coach → `/gym/{gymId}/coach/my-members`
+- [x] `/gym/[gymId]/admin/coaches`: lista de coaches con contador de alumnos + modal "Asignar alumno"
+- [x] `/gym/[gymId]/admin/coaches/actions.ts`: `assignCoach()` y `unassignCoach()` Server Actions
+- [x] `/gym/[gymId]/coach/my-members`: lista de alumnos asignados con badge rutina activa/inactiva + link al historial
+- [x] Tests unitarios: `coaches-view.test.tsx` (9 tests), `my-members-view.test.tsx` (7 tests)
+- [x] Factories de test: `aCoach`, `aAssignedMember`, `aGymMember` en `tests/utils/factories.ts`
+
 ### Fase 6 — App Móvil Core ✅
 - [x] Inicializar proyecto Expo (`sgg-app/`) con NativeWind, React Query, Zustand, Expo Router
 - [x] Configurar Supabase Auth + SecureStore (`lib/supabase.ts`)

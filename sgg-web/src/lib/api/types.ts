@@ -45,6 +45,7 @@ export interface MembershipDto {
   gymName: string
   gymSlug: string
   gymLogoUrl: string | null
+  gymType: string
   role: string
   status: string
   membershipExpiresAt: string | null
@@ -268,6 +269,32 @@ export interface ExerciseProgressDto {
   dayNumber: number
   sessions: ExerciseSessionDto[]
   stats: ExerciseStatsDto
+}
+
+// ─── Coaching DTOs ───
+
+export interface CoachSummaryDto {
+  userId: number
+  fullName: string
+  email: string
+  assignedMembersCount: number
+}
+
+export interface CoachAssignmentDto {
+  id: number
+  gymId: number
+  coachUserId: number
+  memberUserId: number
+  assignedAt: string
+}
+
+export interface AssignedMemberDto {
+  userId: number
+  fullName: string
+  avatarUrl: string | null
+  assignmentId: number
+  assignedAt: string
+  hasActiveRoutine: boolean
 }
 
 // ─── Schedule DTOs ───

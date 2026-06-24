@@ -53,3 +53,36 @@ export async function updateTemplate(gymId: string, templateId: number, data: un
     return { success: false, error: 'Error inesperado' }
   }
 }
+
+export async function startPersonalRoutine(gymId: string, templateId: number): Promise<ActionResult> {
+  try {
+    const userRes = await apiClient<{ data: { id: number } }>('/api/users/me')
+    await apiClient(`/api/gyms/${gymId}/coach/assignments`, {
+      method: 'POST',
+      body: JSON.stringify({
+        templateId,
+        memberUserId: userRes.data.id,
+        startsAt: new Date().toISOString(),
+      }),
+    })
+    revalidatePath(`/gym/${gymId}/member/routine`)
+    return { success: true }
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return { success: false, error: error.body.message, status: error.status }
+    }
+    return { success: false, error: 'Error inesperado' }
+  }
+}
+
+export async function finishActiveRoutineAction(gymId: string): Promise<ActionResult> {
+  try {
+    await apiClient(`/api/gyms/${gymId}/member/routine/finish`, { method: 'POST' })
+    return { success: true }
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return { success: false, error: error.body.message, status: error.status }
+    }
+    return { success: false, error: 'Error inesperado' }
+  }
+}

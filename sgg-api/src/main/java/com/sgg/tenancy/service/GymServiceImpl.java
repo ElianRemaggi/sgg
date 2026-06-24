@@ -22,7 +22,7 @@ public class GymServiceImpl implements GymService {
 
     @Override
     public GymPublicDto searchBySlug(String slug) {
-        return gymRepository.findBySlugAndStatus(slug, "ACTIVE")
+        return gymRepository.findBySlugAndStatusAndType(slug, "ACTIVE", "STANDARD")
             .map(gymMapper::toPublicDto)
             .orElseThrow(() -> new ResourceNotFoundException("Gym no encontrado"));
     }
@@ -32,7 +32,8 @@ public class GymServiceImpl implements GymService {
         if (query == null || query.trim().length() < 2) {
             return List.of();
         }
-        return gymRepository.findTop10ByNameContainingIgnoreCaseAndStatusAndDeletedAtIsNullOrderByNameAsc(query.trim(), "ACTIVE")
+        return gymRepository.findTop10ByNameContainingIgnoreCaseAndStatusAndTypeAndDeletedAtIsNullOrderByNameAsc(
+                query.trim(), "ACTIVE", "STANDARD")
             .stream()
             .map(gymMapper::toPublicDto)
             .toList();
@@ -40,9 +41,12 @@ public class GymServiceImpl implements GymService {
 
     @Override
     public GymDto getGymInfo(Long gymId) {
-        return gymRepository.findByIdAndDeletedAtIsNull(gymId)
-            .map(gymMapper::toDto)
+        Gym gym = gymRepository.findByIdAndDeletedAtIsNull(gymId)
             .orElseThrow(() -> new ResourceNotFoundException("Gym no encontrado"));
+        if ("PERSONAL".equals(gym.getType())) {
+            throw new ResourceNotFoundException("Gym no encontrado");
+        }
+        return gymMapper.toDto(gym);
     }
 
     @Override

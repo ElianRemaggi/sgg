@@ -47,4 +47,13 @@ public class RoutineAssignmentController {
         Long userId = securityUtils.getCurrentUserId();
         return ResponseEntity.ok(ApiResponse.ok(assignmentService.getHistory(gymId, userId)));
     }
+
+    @PostMapping("/member/routine/finish")
+    @PreAuthorize("@gymAccessChecker.isMember(#gymId) or hasRole('SUPERADMIN')")
+    public ResponseEntity<ApiResponse<Void>> finishActiveRoutine(
+            @PathVariable Long gymId) {
+        Long userId = securityUtils.getCurrentUserId();
+        assignmentService.finishActiveRoutine(gymId, userId);
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
 }

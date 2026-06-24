@@ -1,18 +1,34 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import type { MemberRoutineDto, TrackingProgressDto, ExerciseCompletionDto } from '@/lib/api/types'
 import { ExerciseRow } from './exercise-row'
+import { apiClient } from '@/lib/api/client'
 
 interface RoutineTrackingViewProps {
   gymId: string
   routine: MemberRoutineDto
   progress: TrackingProgressDto | null
+  isPersonalGym?: boolean
 }
 
-export function RoutineTrackingView({ gymId, routine, progress }: RoutineTrackingViewProps) {
+export function RoutineTrackingView({ gymId, routine, progress, isPersonalGym = false }: RoutineTrackingViewProps) {
+  const router = useRouter()
+  const [finishing, setFinishing] = useState(false)
+  async function handleFinishRoutine() {
+    setFinishing(true)
+    try {
+      await apiClient(`/api/gyms/${gymId}/member/routine/finish`, { method: 'POST' })
+      router.refresh()
+    } finally {
+      setFinishing(false)
+    }
+  }
+
   const completionMap = new Map<number, ExerciseCompletionDto>(
     (progress?.completions ?? []).map(c => [c.exerciseId, c])
   )
@@ -25,12 +41,25 @@ export function RoutineTrackingView({ gymId, routine, progress }: RoutineTrackin
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <h2 className="text-lg font-semibold">{routine.templateName}</h2>
-        <Badge variant="secondary">
-          {new Date(routine.startsAt).toLocaleDateString('es-AR')}
-          {routine.endsAt && ` — ${new Date(routine.endsAt).toLocaleDateString('es-AR')}`}
-        </Badge>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-lg font-semibold">{routine.templateName}</h2>
+          <Badge variant="secondary">
+            {new Date(routine.startsAt).toLocaleDateString('es-AR')}
+            {routine.endsAt && ` — ${new Date(routine.endsAt).toLocaleDateString('es-AR')}`}
+          </Badge>
+        </div>
+        {isPersonalGym && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFinishRoutine}
+            disabled={finishing}
+            className="text-destructive hover:text-destructive border-destructive/30 hover:border-destructive"
+          >
+            {finishing ? 'Finalizando...' : 'Finalizar rutina'}
+          </Button>
+        )}
       </div>
 
       {/* Progress bar */}

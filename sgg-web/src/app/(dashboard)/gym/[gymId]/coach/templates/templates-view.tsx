@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { RoutineTemplateSummaryDto } from '@/lib/api/types'
-import { deleteTemplate } from './actions'
+import { deleteTemplate, startPersonalRoutine, finishActiveRoutineAction } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Dumbbell, Plus, Pencil, Trash2, FileSpreadsheet } from 'lucide-react'
+import { Dumbbell, Plus, Pencil, Trash2, FileSpreadsheet, Play } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -20,12 +21,51 @@ import { useToast } from '@/components/ui/toast'
 interface TemplatesViewProps {
   templates: RoutineTemplateSummaryDto[]
   gymId: string
+  isPersonalGym?: boolean
 }
 
-export function TemplatesView({ templates, gymId }: TemplatesViewProps) {
+export function TemplatesView({ templates, gymId, isPersonalGym = false }: TemplatesViewProps) {
+  const router = useRouter()
   const [deleteTarget, setDeleteTarget] = useState<RoutineTemplateSummaryDto | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [startingId, setStartingId] = useState<number | null>(null)
+  const [conflictTemplate, setConflictTemplate] = useState<RoutineTemplateSummaryDto | null>(null)
+  const [finishing, setFinishing] = useState(false)
   const { toast } = useToast()
+
+  async function handleStart(template: RoutineTemplateSummaryDto) {
+    setStartingId(template.id)
+    const result = await startPersonalRoutine(gymId, template.id)
+    setStartingId(null)
+    if (result.success) {
+      router.push(`/gym/${gymId}/member/routine`)
+      return
+    }
+    if (result.status === 409) {
+      setConflictTemplate(template)
+      return
+    }
+    toast(result.error ?? 'Error al iniciar la rutina', 'error')
+  }
+
+  async function handleFinishAndStart() {
+    if (!conflictTemplate) return
+    setFinishing(true)
+    const finish = await finishActiveRoutineAction(gymId)
+    if (!finish.success) {
+      setFinishing(false)
+      toast(finish.error ?? 'Error al finalizar la rutina actual', 'error')
+      return
+    }
+    const start = await startPersonalRoutine(gymId, conflictTemplate.id)
+    setFinishing(false)
+    setConflictTemplate(null)
+    if (start.success) {
+      router.push(`/gym/${gymId}/member/routine`)
+    } else {
+      toast(start.error ?? 'Error al iniciar la rutina', 'error')
+    }
+  }
 
   async function handleDelete() {
     if (!deleteTarget) return
@@ -118,6 +158,16 @@ export function TemplatesView({ templates, gymId }: TemplatesViewProps) {
                   <span>Por {template.createdBy?.fullName ?? 'Desconocido'}</span>
                   <span>{new Date(template.createdAt).toLocaleDateString()}</span>
                 </div>
+                {isPersonalGym && (
+                  <Button
+                    className="mt-4 w-full"
+                    onClick={() => handleStart(template)}
+                    disabled={startingId === template.id}
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    {startingId === template.id ? 'Iniciando...' : 'Empezar esta rutina'}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -141,6 +191,28 @@ export function TemplatesView({ templates, gymId }: TemplatesViewProps) {
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
               {deleting ? 'Eliminando...' : 'Eliminar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!conflictTemplate} onOpenChange={() => setConflictTemplate(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ya tenés una rutina activa</DialogTitle>
+            {conflictTemplate && (
+              <p className="text-sm text-muted-foreground">
+                Para empezar &quot;{conflictTemplate.name}&quot; necesitás finalizar tu rutina actual.
+                ¿Querés finalizarla y empezar esta?
+              </p>
+            )}
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConflictTemplate(null)} disabled={finishing}>
+              Cancelar
+            </Button>
+            <Button onClick={handleFinishAndStart} disabled={finishing}>
+              {finishing ? 'Cambiando...' : 'Finalizar y empezar'}
             </Button>
           </DialogFooter>
         </DialogContent>

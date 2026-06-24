@@ -42,6 +42,9 @@ public class Gym {
     private Boolean autoAcceptMembers = false;
 
     @Column(nullable = false, length = 20)
+    private String type = "STANDARD";
+
+    @Column(nullable = false, length = 20)
     private String status = "ACTIVE";
 
     @Column(name = "deleted_at")

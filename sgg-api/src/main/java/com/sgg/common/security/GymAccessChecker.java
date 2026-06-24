@@ -24,6 +24,13 @@ public class GymAccessChecker {
     }
 
     public boolean isCoach(Long gymId) {
+        // O(1): owner de gym personal puede crear/editar plantillas y auto-asignarse.
+        // Este check debe ir antes de cachedRoleFor porque el owner está inscrito como MEMBER.
+        if (gymId.equals(TenantContext.getGymId())
+                && "PERSONAL".equals(TenantContext.getGymType())) {
+            Long userId = securityUtils.getCurrentUserId();
+            return userId != null && userId.equals(TenantContext.getGymOwnerUserId());
+        }
         String role = cachedRoleFor(gymId);
         if (role != null) return List.of("COACH", "ADMIN_COACH").contains(role);
         Long userId = securityUtils.getCurrentUserId();

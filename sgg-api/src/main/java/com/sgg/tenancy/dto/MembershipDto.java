@@ -8,6 +8,7 @@ public record MembershipDto(
     String gymName,
     String gymSlug,
     String gymLogoUrl,
+    String gymType,
     String role,
     String status,
     LocalDateTime membershipExpiresAt

@@ -13,4 +13,6 @@ public interface RoutineAssignmentService {
     MemberRoutineDto getActiveRoutine(Long gymId, Long memberUserId);
 
     List<RoutineAssignmentDto> getHistory(Long gymId, Long memberUserId);
+
+    void finishActiveRoutine(Long gymId, Long memberUserId);
 }
