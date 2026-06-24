@@ -107,7 +107,6 @@ services:
     volumes:
       - ./sgg-web:/app
       - /app/node_modules         # Previene que el bind mount pise node_modules
-      - /app/.next
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8080
 ```
@@ -187,15 +186,22 @@ module.exports = { output: 'standalone' }
 
 ```bash
 # Base de datos
-DB_PASSWORD=
+DB_PASSWORD=cambia_esta_password_en_produccion
 
 # Supabase
-SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_URL=https://TU_PROJECT_REF.supabase.co
 SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
-SUPABASE_JWKS_URI=https://xxx.supabase.co/auth/v1/.well-known/jwks.json
+SUPABASE_JWKS_URI=https://TU_PROJECT_REF.supabase.co/auth/v1/.well-known/jwks.json
 
-# Dominio (producción)
+# Auth nativa (mín. 32 caracteres, cambiá en producción)
+APP_JWT_SECRET=cambia_este_secreto_en_produccion_min_32_chars!!
+
+# CORS (producción)
+APP_CORS_WEB_ORIGIN=https://web.tudominio.com
+APP_CORS_ALLOWED_ORIGINS=https://api.tudominio.com
+
+# Dominios (producción)
 WEB_DOMAIN=web.tudominio.com
 API_DOMAIN=api.tudominio.com
 ```
