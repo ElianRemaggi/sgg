@@ -6,7 +6,41 @@ import type {
   MemberRoutineDto,
   TemplateExerciseDto,
   ExerciseCompletionDto,
+  CoachSummaryDto,
+  AssignedMemberDto,
+  GymMemberDto,
 } from '@/lib/api/types'
+
+export const aCoach = (overrides: Partial<CoachSummaryDto> = {}): CoachSummaryDto => ({
+  userId: 10,
+  fullName: 'Carlos Entrenador',
+  email: 'carlos@gym.com',
+  assignedMembersCount: 0,
+  ...overrides,
+})
+
+export const aAssignedMember = (overrides: Partial<AssignedMemberDto> = {}): AssignedMemberDto => ({
+  userId: 20,
+  fullName: 'Ana Miembro',
+  avatarUrl: null,
+  assignmentId: 100,
+  assignedAt: '2026-01-15T10:00:00Z',
+  hasActiveRoutine: false,
+  ...overrides,
+})
+
+export const aGymMember = (overrides: Partial<GymMemberDto> = {}): GymMemberDto => ({
+  memberId: 1,
+  userId: 20,
+  fullName: 'Ana Miembro',
+  email: 'ana@gym.com',
+  avatarUrl: null,
+  role: 'MEMBER',
+  status: 'ACTIVE',
+  membershipExpiresAt: null,
+  joinedAt: '2026-01-01T00:00:00Z',
+  ...overrides,
+})
 
 export const aAssignmentSummary = (
   overrides: Partial<AssignmentHistorySummaryDto> = {}
