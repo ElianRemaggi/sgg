@@ -9,7 +9,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Public pages: skip auth entirely before any Supabase client instantiation
-  const isPublicPage = request.nextUrl.pathname.startsWith('/landing')
+  const isPublicPage =
+    request.nextUrl.pathname.startsWith('/landing') ||
+    request.nextUrl.pathname.startsWith('/auth/')
   if (isPublicPage) return NextResponse.next({ request: { headers: request.headers } })
 
   let response = NextResponse.next({
