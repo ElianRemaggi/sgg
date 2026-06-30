@@ -264,9 +264,9 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 | tracking | 28 | 28* | TrackingControllerTest (11), MemberHistoryControllerTest (10), CoachHistoryControllerTest (7) |
 | schedule | 7 | 7* | ScheduleControllerTest (7) |
 | platform | 27 | 27 | PlatformGymControllerTest (18), PlatformAdminControllerTest (9) |
-| coaching | 9 | ✓* | CoachAssignmentControllerTest (9) |
+| coaching | 9 | 9 | CoachAssignmentControllerTest (9) |
 
-**Total: 158 tests** (\* tracking, history, schedule y coaching requieren Docker Desktop + Java en host)
+**Total: 206 tests — 206 pasando, 0 fallos** (\* requieren `TEST_DB_URL` apuntando a una BD PostgreSQL accesible — ver nota abajo)
 
 ### Tests Frontend (Vitest + Playwright)
 
@@ -384,5 +384,7 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 - **tsconfig.json excluye tests en build (Sub-Fase 5.9).** Los archivos `*.test.ts(x)` y `*.spec.ts` se excluyeron del `tsconfig.json` principal de Next.js para evitar conflictos de tipos entre los globals de `vite/client` y los de `@vitest/globals` durante `next build`.
 
 - **MSW para mocking en tests frontend (Sub-Fase 5.9).** Los tests de componentes usan Mock Service Worker (MSW) en lugar de `jest.mock` / `vi.mock` sobre el API client. Esto testea la integración real de fetch → handler → componente, sin acoplar los tests a la implementación interna del cliente.
+
+- **Tests: workaround Docker API version (entornos cloud/remoto).** docker-java 3.4.x usa API v1.32 en las URLs pero algunos entornos Docker Engine requieren mínimo 1.40. `BaseIntegrationTest` soporta `TEST_DB_URL` / `TEST_DB_USER` / `TEST_DB_PASSWORD` env vars para bypasear Testcontainers y apuntar a una BD existente. Ejemplo: `TEST_DB_URL=jdbc:postgresql://172.18.0.2:5432/sgg_test ./mvnw test`.
 
 - **DualJwtDecoder algoritmo HS384 explícito.** La firma del secreto nativo usa HS384 pero `MacAlgorithm` no se estaba especificando explícitamente, causando que en algunos builds el decoder fallara al verificar tokens nativos. Se corrigió pasando `MacAlgorithm.HS384` explícitamente al `NimbusJwtDecoder`.
