@@ -6,11 +6,13 @@ import com.sgg.common.exception.ResourceNotFoundException;
 import com.sgg.tenancy.dto.*;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.event.CoachDeactivatedEvent;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class GymMemberServiceImpl implements GymMemberService {
 
     private final GymMemberRepository gymMemberRepository;
     private final GymRepository gymRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public JoinRequestResponse requestJoin(Long gymId, Long userId) {
@@ -97,6 +100,9 @@ public class GymMemberServiceImpl implements GymMemberService {
 
         member.setStatus("BLOCKED");
         gymMemberRepository.save(member);
+        if (List.of("COACH", "ADMIN_COACH").contains(member.getRole())) {
+            eventPublisher.publishEvent(new CoachDeactivatedEvent(gymId, member.getUserId()));
+        }
         log.info("Member blocked: memberId={}, gymId={}", memberId, gymId);
     }
 
@@ -122,10 +128,9 @@ public class GymMemberServiceImpl implements GymMemberService {
             throw new AccessDeniedException("No podés cambiar tu propio rol");
         }
 
-        if ("COACH".equals(member.getRole()) && "MEMBER".equals(request.role())) {
-            if (hasActiveCoachAssignments(memberId)) {
-                throw new BusinessException("El coach tiene asignaciones activas. Reasigná los alumnos antes de degradar.");
-            }
+        if (List.of("COACH", "ADMIN_COACH").contains(member.getRole())
+                && !List.of("COACH", "ADMIN_COACH").contains(request.role())) {
+            eventPublisher.publishEvent(new CoachDeactivatedEvent(gymId, member.getUserId()));
         }
 
         member.setRole(request.role());
@@ -160,8 +165,4 @@ public class GymMemberServiceImpl implements GymMemberService {
         return member;
     }
 
-    private boolean hasActiveCoachAssignments(Long memberId) {
-        // Placeholder: se implementa en Fase 6 (coaching module)
-        return false;
-    }
 }
