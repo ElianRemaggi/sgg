@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { MemberRoutineDto, TrackingProgressDto, ExerciseCompletionDto } from '@/lib/api/types'
 import { ExerciseRow } from './exercise-row'
-import { apiClient } from '@/lib/api/client'
+import { apiClient } from '@/lib/api/browser'
 
 interface RoutineTrackingViewProps {
   gymId: string
