@@ -6,8 +6,8 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 
 ## Estado General
 
-**Fase actual:** 8 — Tests App Móvil
-**Última actualización:** 2026-05-13
+**Fase actual:** Post-Fase 9 — Coaching Backend + Self-Service + Fixes Arquitectura
+**Última actualización:** 2026-06-30
 
 ---
 
@@ -176,7 +176,29 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 - [x] `exercise-row.tsx`: markup simplificado, layout mobile mejorado, confirmación al deshacer
 - [x] Platform/gyms/new: búsqueda de owner refactorizada a server action
 - [x] `seed-dev-db.sh`: reescrito para reflejar datos actuales (usuarios con `password_hash`, `username`, rutinas Push/Pull)
-- [ ] *(pendiente commit)* `select-gym/page.tsx`: auto-redirect role-aware para usuario con un solo gym activo (admin→members, coach→templates, member→routine)
+- [x] `select-gym/page.tsx`: auto-redirect role-aware para usuario con un solo gym activo (admin→members, coach→templates, member→routine)
+- [x] Simplificación exportación: solo Excel, botón directo sin dropdown
+- [x] Exportar plantilla de rutina a Excel y CSV
+
+### Fase 9b — Módulo Coaching Backend ✅
+- [x] Flyway V18 (`create_coach_assignments`): tabla `coach_assignments` con `gym_id`, `coach_user_id`, `member_user_id`, `assigned_at`, `unassigned_at`
+- [x] Entidad `CoachAssignment` con `@FilterDef`/`@Filter` para tenant isolation
+- [x] `CoachAssignmentRepository`: `findByGymIdAndCoachUserIdAndUnassignedAtIsNull`, `existsByGymIdAndMemberUserIdAndUnassignedAtIsNull`, `findCoachesWithAssignmentCount` (JPQL con subquery de conteo)
+- [x] DTOs: `CoachSummaryDto`, `CoachAssignmentDto`, `AssignCoachRequest`, `AssignedMemberDto`
+- [x] `CoachAssignmentService` + `CoachAssignmentServiceImpl`: `listCoaches`, `assignCoach`, `unassignCoach`, `getMyMembers`, `hasActiveAssignmentsAsCoach`
+- [x] Controllers: `AdminCoachController` (GET `/admin/coaches`, POST/DELETE `/admin/assign-coach`), `CoachMyMembersController` (GET `/coach/my-members`)
+- [x] Tests: `CoachAssignmentControllerTest` (9 tests — requieren Docker Desktop + Java en host)
+- [x] `refactor(arch)`: dependencia circular `tenancy→coaching` eliminada; `GymMemberServiceImpl` ahora publica `CoachDeactivatedEvent` y `CoachEventListener` (coaching) lo maneja con `@TransactionalEventListener(BEFORE_COMMIT)`
+
+### Fase 9c — Self-Service Entrenamiento Personal ✅
+- [x] Flyway V17 (`soft_delete_users`): soft delete en tabla `users`
+- [x] Flyway V19 (`create_gym_requests`): tabla `gym_requests` para solicitudes de acceso
+- [x] Flyway V20 (`add_type_to_gyms`): columna `type` en `gyms` con valores `GYM` | `PERSONAL`
+- [x] Backend: creación automática de gym PERSONAL al registrarse (tipo `PERSONAL`, auto-accept, owner = usuario)
+- [x] Frontend: `PersonalGymCreateButton` en `/select-gym` — crea gym PERSONAL on-demand con `api/browser.ts` (Supabase browser client)
+- [x] Frontend: `browser.ts` extraído de `client.ts` para componentes client-side que necesitan token del browser
+- [x] Fix: middleware excluye `/auth/` para que callback OAuth de Google funcione sin redirect loop
+- [x] Fix: algoritmo JWT nativo alineado a HS256 explícito en emisión y decodificación
 
 ### Fase 9 — Módulo Coaching Frontend Web ✅
 - [x] Tipos TS: `CoachSummaryDto`, `CoachAssignmentDto`, `AssignedMemberDto` en `lib/api/types.ts`
@@ -242,8 +264,9 @@ Actualizar este archivo al completar cada tarea. Claude Code lo lee para saber d
 | tracking | 28 | 28* | TrackingControllerTest (11), MemberHistoryControllerTest (10), CoachHistoryControllerTest (7) |
 | schedule | 7 | 7* | ScheduleControllerTest (7) |
 | platform | 27 | 27 | PlatformGymControllerTest (18), PlatformAdminControllerTest (9) |
+| coaching | 9 | ✓* | CoachAssignmentControllerTest (9) |
 
-**Total: 149 tests** (\* tracking, history y schedule requieren Docker Desktop corriendo)
+**Total: 158 tests** (\* tracking, history, schedule y coaching requieren Docker Desktop + Java en host)
 
 ### Tests Frontend (Vitest + Playwright)
 
