@@ -16,6 +16,8 @@ import {
   Menu,
   X,
   ChevronRight,
+  ChevronLeft,
+  ZoomIn,
   Dumbbell,
 } from 'lucide-react'
 
@@ -165,10 +167,40 @@ const featureColors = {
   },
 }
 
+const previewScreenshots = [
+  { src: '/screenshots/admin-members.jpg', label: 'Admin · Gestión de miembros', alt: 'Panel de administración de miembros' },
+  { src: '/screenshots/coach-templates.jpg', label: 'Coach · Plantillas de rutinas', alt: 'Plantillas de rutina del coach' },
+  { src: '/screenshots/member-routine.jpg', label: 'Miembro · Mi rutina activa', alt: 'Vista de rutina del miembro' },
+  { src: '/screenshots/member-history.jpg', label: 'Miembro · Historial de progreso', alt: 'Historial de rutinas del miembro' },
+]
+
 export default function LandingPage() {
   const rootRef = useRef<HTMLDivElement>(null)
   const [activeRole, setActiveRole] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (lightboxIndex === null) return
+
+    document.body.style.overflow = 'hidden'
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setLightboxIndex(null)
+      if (e.key === 'ArrowRight') {
+        setLightboxIndex(i => (i === null ? i : (i + 1) % previewScreenshots.length))
+      }
+      if (e.key === 'ArrowLeft') {
+        setLightboxIndex(i => (i === null ? i : (i - 1 + previewScreenshots.length) % previewScreenshots.length))
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [lightboxIndex])
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
@@ -642,17 +674,15 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            {[
-              { src: '/screenshots/admin-members.jpg', label: 'Admin · Gestión de miembros', alt: 'Panel de administración de miembros' },
-              { src: '/screenshots/coach-templates.jpg', label: 'Coach · Plantillas de rutinas', alt: 'Plantillas de rutina del coach' },
-              { src: '/screenshots/member-routine.jpg', label: 'Miembro · Mi rutina activa', alt: 'Vista de rutina del miembro' },
-              { src: '/screenshots/member-history.jpg', label: 'Miembro · Historial de progreso', alt: 'Historial de rutinas del miembro' },
-            ].map((item) => (
-              <div
+            {previewScreenshots.map((item, i) => (
+              <button
                 key={item.src}
+                type="button"
+                onClick={() => setLightboxIndex(i)}
                 data-anim="feature-card"
-                className="rounded-2xl overflow-hidden"
+                className="group relative rounded-2xl overflow-hidden text-left cursor-zoom-in transition-transform duration-300 hover:-translate-y-1"
                 style={{ border: '1px solid rgba(184,180,255,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}
+                aria-label={`Ampliar captura: ${item.label}`}
               >
                 <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'hsl(222 24% 11%)', borderBottom: '1px solid rgba(184,180,255,0.07)' }}>
                   <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
@@ -660,20 +690,109 @@ export default function LandingPage() {
                   <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
                   <span className="ml-3 text-xs font-mono" style={{ color: 'hsl(247 10% 40%)' }}>{item.label}</span>
                 </div>
-                <Image
-                  src={item.src}
-                  alt={item.alt}
-                  unoptimized
-                  width={1280}
-                  height={800}
-                  className="w-full h-auto"
-                  style={{ display: 'block' }}
-                />
-              </div>
+                <div className="relative">
+                  <Image
+                    src={item.src}
+                    alt={item.alt}
+                    unoptimized
+                    width={1280}
+                    height={800}
+                    className="w-full h-auto"
+                    style={{ display: 'block' }}
+                  />
+                  <div
+                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    style={{ background: 'rgba(10,10,18,0.45)' }}
+                  >
+                    <div
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-full"
+                      style={{ background: 'rgba(20,20,32,0.85)', border: '1px solid rgba(184,180,255,0.25)' }}
+                    >
+                      <ZoomIn size={16} color="hsl(241 100% 88%)" />
+                      <span className="text-xs font-semibold" style={{ color: 'hsl(234 20% 92%)' }}>Ver en grande</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
             ))}
           </div>
         </div>
       </section>
+
+      {/* ─── LIGHTBOX: GALERÍA DE CAPTURAS ─── */}
+      {lightboxIndex !== null && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10"
+          style={{ background: 'rgba(8,8,14,0.92)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setLightboxIndex(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Galería de capturas del sistema"
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxIndex(null)}
+            className="absolute top-5 right-5 md:top-8 md:right-8 p-2.5 rounded-full transition-colors hover:bg-white/10"
+            style={{ color: 'hsl(234 20% 92%)', border: '1px solid rgba(184,180,255,0.2)' }}
+            aria-label="Cerrar"
+          >
+            <X size={22} />
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setLightboxIndex(i => (i === null ? i : (i - 1 + previewScreenshots.length) % previewScreenshots.length))
+            }}
+            className="absolute left-2 md:left-6 top-1/2 -translate-y-1/2 p-2.5 md:p-3 rounded-full transition-colors hover:bg-white/10"
+            style={{ color: 'hsl(234 20% 92%)', border: '1px solid rgba(184,180,255,0.2)', background: 'rgba(20,20,32,0.6)' }}
+            aria-label="Captura anterior"
+          >
+            <ChevronLeft size={24} />
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setLightboxIndex(i => (i === null ? i : (i + 1) % previewScreenshots.length))
+            }}
+            className="absolute right-2 md:right-6 top-1/2 -translate-y-1/2 p-2.5 md:p-3 rounded-full transition-colors hover:bg-white/10"
+            style={{ color: 'hsl(234 20% 92%)', border: '1px solid rgba(184,180,255,0.2)', background: 'rgba(20,20,32,0.6)' }}
+            aria-label="Siguiente captura"
+          >
+            <ChevronRight size={24} />
+          </button>
+
+          <div
+            className="relative max-w-5xl w-full rounded-2xl overflow-hidden"
+            style={{ border: '1px solid rgba(184,180,255,0.15)', boxShadow: '0 30px 90px rgba(0,0,0,0.6)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'hsl(222 24% 11%)', borderBottom: '1px solid rgba(184,180,255,0.07)' }}>
+              <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
+              <div className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]" />
+              <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
+              <span className="ml-3 text-xs font-mono" style={{ color: 'hsl(247 10% 40%)' }}>
+                {previewScreenshots[lightboxIndex].label}
+              </span>
+              <span className="ml-auto text-xs font-mono" style={{ color: 'hsl(247 10% 40%)' }}>
+                {lightboxIndex + 1} / {previewScreenshots.length}
+              </span>
+            </div>
+            <Image
+              src={previewScreenshots[lightboxIndex].src}
+              alt={previewScreenshots[lightboxIndex].alt}
+              unoptimized
+              width={1920}
+              height={1200}
+              className="w-full h-auto max-h-[80vh] object-contain"
+              style={{ display: 'block', background: 'hsl(222 26% 8%)' }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ─── APP MÓVIL ─── */}
       <section data-section="app" id="app-movil" className="py-28 relative overflow-hidden">
