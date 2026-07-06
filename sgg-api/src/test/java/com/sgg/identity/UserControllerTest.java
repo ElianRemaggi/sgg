@@ -7,6 +7,9 @@ import com.sgg.identity.repository.AuthIdentityRepository;
 import com.sgg.identity.repository.UserRepository;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+import com.sgg.tenancy.entity.GymStatus;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -125,14 +128,14 @@ class UserControllerTest extends BaseIntegrationTest {
         gym.setName("Test Gym");
         gym.setSlug("test-gym-delete");
         gym.setOwnerUserId(testUser.getId());
-        gym.setStatus("ACTIVE");
+        gym.setStatus(GymStatus.ACTIVE);
         gym = gymRepository.save(gym);
 
         GymMember membership = new GymMember();
         membership.setGymId(gym.getId());
         membership.setUserId(testUser.getId());
-        membership.setRole("MEMBER");
-        membership.setStatus("ACTIVE");
+        membership.setRole(GymMemberRole.MEMBER);
+        membership.setStatus(GymMemberStatus.ACTIVE);
         gymMemberRepository.save(membership);
 
         mockMvc.perform(delete("/api/users/me")
@@ -147,7 +150,7 @@ class UserControllerTest extends BaseIntegrationTest {
         assertThat(deleted.getPasswordHash()).isNull();
 
         GymMember inactivated = gymMemberRepository.findById(membership.getId()).orElseThrow();
-        assertThat(inactivated.getStatus()).isEqualTo("INACTIVE");
+        assertThat(inactivated.getStatus()).isEqualTo(GymMemberStatus.INACTIVE);
     }
 
     @Test

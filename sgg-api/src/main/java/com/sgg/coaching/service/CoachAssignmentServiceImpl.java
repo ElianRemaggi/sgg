@@ -13,6 +13,8 @@ import com.sgg.common.security.SecurityUtils;
 import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.UserRepository;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.training.repository.RoutineAssignmentRepository;
 import lombok.RequiredArgsConstructor;
@@ -49,18 +51,18 @@ public class CoachAssignmentServiceImpl implements CoachAssignmentService {
     @Override
     public CoachAssignmentDto assignCoach(Long gymId, AssignCoachRequest request) {
         GymMember coachMember = gymMemberRepository
-            .findByGymIdAndUserIdAndStatus(gymId, request.coachUserId(), "ACTIVE")
+            .findByGymIdAndUserIdAndStatus(gymId, request.coachUserId(), GymMemberStatus.ACTIVE)
             .orElseThrow(() -> new ValidationException("coachUserId no pertenece a este gym como miembro activo"));
 
-        if (!List.of("COACH", "ADMIN_COACH").contains(coachMember.getRole())) {
+        if (coachMember.getRole() != GymMemberRole.COACH && coachMember.getRole() != GymMemberRole.ADMIN_COACH) {
             throw new ValidationException("El usuario no tiene rol de coach en este gym");
         }
 
         GymMember memberMem = gymMemberRepository
-            .findByGymIdAndUserIdAndStatus(gymId, request.memberUserId(), "ACTIVE")
+            .findByGymIdAndUserIdAndStatus(gymId, request.memberUserId(), GymMemberStatus.ACTIVE)
             .orElseThrow(() -> new ValidationException("memberUserId no pertenece a este gym como miembro activo"));
 
-        if (!"MEMBER".equals(memberMem.getRole())) {
+        if (memberMem.getRole() != GymMemberRole.MEMBER) {
             throw new ValidationException("El usuario destino no tiene rol MEMBER en este gym");
         }
 

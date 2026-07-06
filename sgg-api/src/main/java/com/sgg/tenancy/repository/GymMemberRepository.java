@@ -2,6 +2,8 @@ package com.sgg.tenancy.repository;
 
 import com.sgg.tenancy.dto.GymMemberDto;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,9 +17,9 @@ public interface GymMemberRepository extends JpaRepository<GymMember, Long> {
 
     Optional<GymMember> findByGymIdAndUserId(Long gymId, Long userId);
 
-    Optional<GymMember> findByGymIdAndUserIdAndStatus(Long gymId, Long userId, String status);
+    Optional<GymMember> findByGymIdAndUserIdAndStatus(Long gymId, Long userId, GymMemberStatus status);
 
-    boolean existsByGymIdAndUserIdAndStatusIn(Long gymId, Long userId, List<String> statuses);
+    boolean existsByGymIdAndUserIdAndStatusIn(Long gymId, Long userId, List<GymMemberStatus> statuses);
 
     @Query("""
         SELECT new com.sgg.tenancy.dto.GymMemberDto(
@@ -32,14 +34,14 @@ public interface GymMemberRepository extends JpaRepository<GymMember, Long> {
     """)
     Page<GymMemberDto> findMembersByGymWithFilters(
         @Param("gymId") Long gymId,
-        @Param("status") String status,
-        @Param("role") String role,
+        @Param("status") GymMemberStatus status,
+        @Param("role") GymMemberRole role,
         Pageable pageable
     );
 
     List<GymMember> findByUserId(Long userId);
 
-    long countByGymIdAndStatus(Long gymId, String status);
+    long countByGymIdAndStatus(Long gymId, GymMemberStatus status);
 
-    long countByGymIdAndRoleAndStatus(Long gymId, String role, String status);
+    long countByGymIdAndRoleAndStatus(Long gymId, GymMemberRole role, GymMemberStatus status);
 }

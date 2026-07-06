@@ -43,7 +43,7 @@ public class NativeAuthService {
 
         log.info("Usuario registrado nativamente: {}", user.getEmail());
 
-        String token = nativeJwtConfig.generateToken(user);
+        String token = nativeJwtConfig.generateToken(user.getId(), user.getEmail());
         return new AuthResponse(token, toDto(user));
     }
 
@@ -60,7 +60,7 @@ public class NativeAuthService {
 
         log.info("Login nativo exitoso: {}", user.getEmail());
 
-        String token = nativeJwtConfig.generateToken(user);
+        String token = nativeJwtConfig.generateToken(user.getId(), user.getEmail());
         return new AuthResponse(token, toDto(user));
     }
 

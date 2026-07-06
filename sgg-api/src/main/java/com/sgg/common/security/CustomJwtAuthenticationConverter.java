@@ -1,7 +1,5 @@
 package com.sgg.common.security;
 
-import com.sgg.identity.entity.User;
-import com.sgg.identity.repository.UserRepository;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
@@ -18,23 +16,17 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CustomJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
-    private final UserRepository userRepository;
+    private final CurrentUserResolver currentUserResolver;
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
         Collection<GrantedAuthority> authorities = new ArrayList<>();
 
         String subject = jwt.getSubject();
-        Optional<User> userOpt;
+        Optional<ResolvedUser> resolved = currentUserResolver.resolve(subject, isNativeToken(jwt));
 
-        if (isNativeToken(jwt)) {
-            userOpt = userRepository.findById(Long.valueOf(subject));
-        } else {
-            userOpt = userRepository.findBySupabaseUidAndDeletedAtIsNull(subject);
-        }
-
-        userOpt.ifPresent(user -> {
-            if ("SUPERADMIN".equals(user.getPlatformRole())) {
+        resolved.ifPresent(user -> {
+            if ("SUPERADMIN".equals(user.platformRole())) {
                 authorities.add(new SimpleGrantedAuthority("ROLE_SUPERADMIN"));
             }
         });

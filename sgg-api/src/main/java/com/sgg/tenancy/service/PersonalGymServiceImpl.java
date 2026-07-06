@@ -3,6 +3,10 @@ package com.sgg.tenancy.service;
 import com.sgg.tenancy.dto.PersonalGymResponse;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+import com.sgg.tenancy.entity.GymStatus;
+import com.sgg.tenancy.entity.GymType;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +27,7 @@ public class PersonalGymServiceImpl implements PersonalGymService {
 
     @Override
     public PersonalGymResponse ensurePersonalGym(Long userId) {
-        return gymRepository.findByOwnerUserIdAndType(userId, "PERSONAL")
+        return gymRepository.findByOwnerUserIdAndType(userId, GymType.PERSONAL)
             .map(existing -> {
                 log.debug("Personal gym ya existe para userId={}: gymId={}", userId, existing.getId());
                 return new PersonalGymResponse(existing.getId());
@@ -32,16 +36,16 @@ public class PersonalGymServiceImpl implements PersonalGymService {
                 Gym gym = new Gym();
                 gym.setName("Entrenamiento personal");
                 gym.setSlug("personal-" + userId);
-                gym.setType("PERSONAL");
+                gym.setType(GymType.PERSONAL);
                 gym.setOwnerUserId(userId);
-                gym.setStatus("ACTIVE");
+                gym.setStatus(GymStatus.ACTIVE);
                 gym = gymRepository.save(gym);
 
                 GymMember member = new GymMember();
                 member.setGymId(gym.getId());
                 member.setUserId(userId);
-                member.setRole("MEMBER");
-                member.setStatus("ACTIVE");
+                member.setRole(GymMemberRole.MEMBER);
+                member.setStatus(GymMemberStatus.ACTIVE);
                 gymMemberRepository.save(member);
 
                 log.info("Gym personal creado: userId={}, gymId={}", userId, gym.getId());

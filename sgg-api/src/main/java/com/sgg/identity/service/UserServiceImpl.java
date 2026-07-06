@@ -10,6 +10,7 @@ import com.sgg.identity.mapper.UserMapper;
 import com.sgg.identity.repository.AuthIdentityRepository;
 import com.sgg.identity.repository.UserRepository;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberStatus;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -109,8 +110,8 @@ public class UserServiceImpl implements UserService {
 
         List<GymMember> memberships = gymMemberRepository.findByUserId(userId);
         for (GymMember m : memberships) {
-            if ("ACTIVE".equals(m.getStatus()) || "PENDING".equals(m.getStatus())) {
-                m.setStatus("INACTIVE");
+            if (m.getStatus() == GymMemberStatus.ACTIVE || m.getStatus() == GymMemberStatus.PENDING) {
+                m.setStatus(GymMemberStatus.INACTIVE);
             }
         }
         gymMemberRepository.saveAll(memberships);

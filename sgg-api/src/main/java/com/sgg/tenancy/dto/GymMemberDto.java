@@ -1,5 +1,8 @@
 package com.sgg.tenancy.dto;
 
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+
 import java.time.LocalDateTime;
 
 public record GymMemberDto(
@@ -8,8 +11,8 @@ public record GymMemberDto(
     String fullName,
     String email,
     String avatarUrl,
-    String role,
-    String status,
+    GymMemberRole role,
+    GymMemberStatus status,
     LocalDateTime membershipExpiresAt,
     LocalDateTime joinedAt
 ) {}

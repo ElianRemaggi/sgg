@@ -1,7 +1,9 @@
 package com.sgg.tenancy.dto;
 
+import com.sgg.tenancy.entity.GymMemberStatus;
+
 public record JoinRequestResponse(
     Long membershipId,
-    String status,
+    GymMemberStatus status,
     String gymName
 ) {}

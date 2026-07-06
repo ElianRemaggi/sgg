@@ -5,6 +5,9 @@ import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.UserRepository;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+import com.sgg.tenancy.entity.GymStatus;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
 import com.sgg.training.entity.RoutineAssignment;
@@ -202,8 +205,8 @@ class RoutineTemplateControllerTest extends BaseIntegrationTest {
                 .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("coach-uid-001"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.length()").value(1))
-            .andExpect(jsonPath("$.data[0].name").value("Plantilla existente"));
+            .andExpect(jsonPath("$.data.content.length()").value(1))
+            .andExpect(jsonPath("$.data.content[0].name").value("Plantilla existente"));
     }
 
     // --- GET: Template detail ---
@@ -293,7 +296,7 @@ class RoutineTemplateControllerTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/gyms/{gymId}/coach/templates", gym.getId())
                 .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("coach-uid-001"))))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.length()").value(0));
+            .andExpect(jsonPath("$.data.content.length()").value(0));
     }
 
     @Test
@@ -358,7 +361,7 @@ class RoutineTemplateControllerTest extends BaseIntegrationTest {
         g.setName(name);
         g.setSlug(slug);
         g.setOwnerUserId(ownerId);
-        g.setStatus("ACTIVE");
+        g.setStatus(GymStatus.ACTIVE);
         return gymRepository.save(g);
     }
 
@@ -366,8 +369,8 @@ class RoutineTemplateControllerTest extends BaseIntegrationTest {
         GymMember m = new GymMember();
         m.setGymId(gymId);
         m.setUserId(userId);
-        m.setRole(role);
-        m.setStatus(status);
+        m.setRole(GymMemberRole.valueOf(role));
+        m.setStatus(GymMemberStatus.valueOf(status));
         return gymMemberRepository.save(m);
     }
 }

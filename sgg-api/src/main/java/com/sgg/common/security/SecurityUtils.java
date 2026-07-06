@@ -1,8 +1,6 @@
 package com.sgg.common.security;
 
 import com.sgg.common.exception.ResourceNotFoundException;
-import com.sgg.identity.entity.User;
-import com.sgg.identity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,8 +13,8 @@ import org.springframework.web.context.annotation.RequestScope;
 @RequiredArgsConstructor
 public class SecurityUtils {
 
-    private final UserRepository userRepository;
-    private User cachedUser;
+    private final CurrentUserResolver currentUserResolver;
+    private Long cachedUserId;
 
     public String getSubject() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -30,9 +28,9 @@ public class SecurityUtils {
         return getSubject();
     }
 
-    public User getCurrentUser() {
-        if (cachedUser != null) {
-            return cachedUser;
+    public Long getCurrentUserId() {
+        if (cachedUserId != null) {
+            return cachedUserId;
         }
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -41,22 +39,14 @@ public class SecurityUtils {
         }
 
         String subject = jwt.getSubject();
-        if (CustomJwtAuthenticationConverter.isNativeToken(jwt)) {
-            User user = userRepository.findById(Long.valueOf(subject))
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado para id: " + subject));
-            if (user.getDeletedAt() != null) {
-                throw new ResourceNotFoundException("Usuario no encontrado para id: " + subject);
-            }
-            cachedUser = user;
-        } else {
-            cachedUser = userRepository.findBySupabaseUidAndDeletedAtIsNull(subject)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado para uid: " + subject));
-        }
+        boolean nativeToken = CustomJwtAuthenticationConverter.isNativeToken(jwt);
+        ResolvedUser resolved = currentUserResolver.resolve(subject, nativeToken)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                nativeToken
+                    ? "Usuario no encontrado para id: " + subject
+                    : "Usuario no encontrado para uid: " + subject));
 
-        return cachedUser;
-    }
-
-    public Long getCurrentUserId() {
-        return getCurrentUser().getId();
+        cachedUserId = resolved.id();
+        return cachedUserId;
     }
 }

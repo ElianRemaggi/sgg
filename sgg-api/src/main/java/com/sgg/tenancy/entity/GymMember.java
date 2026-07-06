@@ -31,11 +31,13 @@ public class GymMember {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String role;
+    private GymMemberRole role;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String status = "PENDING";
+    private GymMemberStatus status = GymMemberStatus.PENDING;
 
     @Column(name = "membership_expires_at")
     private LocalDateTime membershipExpiresAt;

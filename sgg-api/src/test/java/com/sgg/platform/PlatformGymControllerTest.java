@@ -5,6 +5,9 @@ import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.UserRepository;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+import com.sgg.tenancy.entity.GymStatus;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -130,10 +133,10 @@ class PlatformGymControllerTest extends BaseIntegrationTest {
                 .content(body))
             .andExpect(status().isCreated());
 
-        Gym newGym = gymRepository.findBySlugAndStatus("new-gym", "ACTIVE").orElseThrow();
+        Gym newGym = gymRepository.findBySlugAndStatus("new-gym", GymStatus.ACTIVE).orElseThrow();
         GymMember ownerMember = gymMemberRepository.findByGymIdAndUserIdAndStatus(
-            newGym.getId(), regularUser.getId(), "ACTIVE").orElseThrow();
-        assert ownerMember.getRole().equals("ADMIN");
+            newGym.getId(), regularUser.getId(), GymMemberStatus.ACTIVE).orElseThrow();
+        assert ownerMember.getRole() == GymMemberRole.ADMIN;
     }
 
     @Test
@@ -313,7 +316,7 @@ class PlatformGymControllerTest extends BaseIntegrationTest {
         g.setName(name);
         g.setSlug(slug);
         g.setOwnerUserId(ownerId);
-        g.setStatus(status);
+        g.setStatus(GymStatus.valueOf(status));
         return gymRepository.save(g);
     }
 
@@ -321,8 +324,8 @@ class PlatformGymControllerTest extends BaseIntegrationTest {
         GymMember m = new GymMember();
         m.setGymId(gymId);
         m.setUserId(userId);
-        m.setRole(role);
-        m.setStatus(status);
+        m.setRole(GymMemberRole.valueOf(role));
+        m.setStatus(GymMemberStatus.valueOf(status));
         return gymMemberRepository.save(m);
     }
 }

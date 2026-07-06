@@ -7,6 +7,9 @@ import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.UserRepository;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+import com.sgg.tenancy.entity.GymStatus;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -188,7 +191,7 @@ class CoachAssignmentControllerTest extends BaseIntegrationTest {
         g.setName(name);
         g.setSlug(slug);
         g.setOwnerUserId(ownerId);
-        g.setStatus("ACTIVE");
+        g.setStatus(GymStatus.ACTIVE);
         return gymRepository.save(g);
     }
 
@@ -196,8 +199,8 @@ class CoachAssignmentControllerTest extends BaseIntegrationTest {
         GymMember m = new GymMember();
         m.setGymId(gymId);
         m.setUserId(userId);
-        m.setRole(role);
-        m.setStatus(status);
+        m.setRole(GymMemberRole.valueOf(role));
+        m.setStatus(GymMemberStatus.valueOf(status));
         return gymMemberRepository.save(m);
     }
 

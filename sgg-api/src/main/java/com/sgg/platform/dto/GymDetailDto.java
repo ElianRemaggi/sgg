@@ -1,5 +1,7 @@
 package com.sgg.platform.dto;
 
+import com.sgg.tenancy.entity.GymStatus;
+
 import java.time.LocalDateTime;
 
 public record GymDetailDto(
@@ -9,7 +11,7 @@ public record GymDetailDto(
     String description,
     String logoUrl,
     String routineCycle,
-    String status,
+    GymStatus status,
     UserSummaryDto owner,
     GymStatsDto stats,
     LocalDateTime createdAt

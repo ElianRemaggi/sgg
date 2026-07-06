@@ -6,6 +6,8 @@ import com.sgg.common.security.SecurityUtils;
 import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.UserRepository;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.training.dto.*;
 import com.sgg.training.entity.RoutineAssignment;
@@ -52,10 +54,10 @@ public class RoutineAssignmentServiceImpl implements RoutineAssignmentService {
             .orElseThrow(() -> new ResourceNotFoundException("Plantilla no encontrada en este gym"));
 
         // BUG-09 fix: validate member has MEMBER role (not COACH/ADMIN)
-        GymMember member = gymMemberRepository.findByGymIdAndUserIdAndStatus(gymId, request.memberUserId(), "ACTIVE")
+        GymMember member = gymMemberRepository.findByGymIdAndUserIdAndStatus(gymId, request.memberUserId(), GymMemberStatus.ACTIVE)
             .orElseThrow(() -> new BusinessException("El miembro no está activo en este gym"));
 
-        if (!"MEMBER".equals(member.getRole())) {
+        if (member.getRole() != GymMemberRole.MEMBER) {
             throw new BusinessException("Solo se puede asignar rutinas a miembros con rol MEMBER");
         }
 

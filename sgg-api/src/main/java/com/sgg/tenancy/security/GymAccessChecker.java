@@ -1,11 +1,13 @@
-package com.sgg.common.security;
+package com.sgg.tenancy.security;
 
 import com.sgg.common.multitenancy.TenantContext;
+import com.sgg.common.security.SecurityUtils;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+import com.sgg.tenancy.entity.GymType;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
 
 @Component("gymAccessChecker")
 @RequiredArgsConstructor
@@ -16,10 +18,10 @@ public class GymAccessChecker {
 
     public boolean isAdmin(Long gymId) {
         String role = cachedRoleFor(gymId);
-        if (role != null) return List.of("ADMIN", "ADMIN_COACH").contains(role);
+        if (role != null) return isAdminRole(role);
         Long userId = securityUtils.getCurrentUserId();
-        return gymMemberRepository.findByGymIdAndUserIdAndStatus(gymId, userId, "ACTIVE")
-            .map(m -> List.of("ADMIN", "ADMIN_COACH").contains(m.getRole()))
+        return gymMemberRepository.findByGymIdAndUserIdAndStatus(gymId, userId, GymMemberStatus.ACTIVE)
+            .map(m -> isAdminRole(m.getRole()))
             .orElse(false);
     }
 
@@ -27,25 +29,41 @@ public class GymAccessChecker {
         // O(1): owner de gym personal puede crear/editar plantillas y auto-asignarse.
         // Este check debe ir antes de cachedRoleFor porque el owner está inscrito como MEMBER.
         if (gymId.equals(TenantContext.getGymId())
-                && "PERSONAL".equals(TenantContext.getGymType())) {
+                && GymType.PERSONAL.name().equals(TenantContext.getGymType())) {
             Long userId = securityUtils.getCurrentUserId();
             return userId != null && userId.equals(TenantContext.getGymOwnerUserId());
         }
         String role = cachedRoleFor(gymId);
-        if (role != null) return List.of("COACH", "ADMIN_COACH").contains(role);
+        if (role != null) return isCoachRole(role);
         Long userId = securityUtils.getCurrentUserId();
-        return gymMemberRepository.findByGymIdAndUserIdAndStatus(gymId, userId, "ACTIVE")
-            .map(m -> List.of("COACH", "ADMIN_COACH").contains(m.getRole()))
+        return gymMemberRepository.findByGymIdAndUserIdAndStatus(gymId, userId, GymMemberStatus.ACTIVE)
+            .map(m -> isCoachRole(m.getRole()))
             .orElse(false);
     }
 
     public boolean isMember(Long gymId) {
         String role = cachedRoleFor(gymId);
-        if (role != null) return "MEMBER".equals(role);
+        if (role != null) return GymMemberRole.MEMBER.name().equals(role);
         Long userId = securityUtils.getCurrentUserId();
-        return gymMemberRepository.findByGymIdAndUserIdAndStatus(gymId, userId, "ACTIVE")
-            .map(m -> "MEMBER".equals(m.getRole()))
+        return gymMemberRepository.findByGymIdAndUserIdAndStatus(gymId, userId, GymMemberStatus.ACTIVE)
+            .map(m -> m.getRole() == GymMemberRole.MEMBER)
             .orElse(false);
+    }
+
+    private boolean isAdminRole(String role) {
+        return GymMemberRole.ADMIN.name().equals(role) || GymMemberRole.ADMIN_COACH.name().equals(role);
+    }
+
+    private boolean isAdminRole(GymMemberRole role) {
+        return role == GymMemberRole.ADMIN || role == GymMemberRole.ADMIN_COACH;
+    }
+
+    private boolean isCoachRole(String role) {
+        return GymMemberRole.COACH.name().equals(role) || GymMemberRole.ADMIN_COACH.name().equals(role);
+    }
+
+    private boolean isCoachRole(GymMemberRole role) {
+        return role == GymMemberRole.COACH || role == GymMemberRole.ADMIN_COACH;
     }
 
     // Returns the cached role only when it belongs to the current request's gym.

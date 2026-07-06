@@ -5,6 +5,10 @@ import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.UserRepository;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+import com.sgg.tenancy.entity.GymStatus;
+import com.sgg.tenancy.entity.GymType;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
 import com.sgg.training.entity.RoutineTemplate;
@@ -67,15 +71,15 @@ class PersonalGymControllerTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.data.gymId").isNumber());
 
         List<Gym> personalGyms = gymRepository.findAll().stream()
-            .filter(g -> "PERSONAL".equals(g.getType()))
+            .filter(g -> g.getType() == GymType.PERSONAL)
             .toList();
         assertThat(personalGyms).hasSize(1);
         assertThat(personalGyms.get(0).getOwnerUserId()).isEqualTo(user.getId());
 
         List<GymMember> members = gymMemberRepository.findByUserId(user.getId());
         assertThat(members).hasSize(1);
-        assertThat(members.get(0).getRole()).isEqualTo("MEMBER");
-        assertThat(members.get(0).getStatus()).isEqualTo("ACTIVE");
+        assertThat(members.get(0).getRole()).isEqualTo(GymMemberRole.MEMBER);
+        assertThat(members.get(0).getStatus()).isEqualTo(GymMemberStatus.ACTIVE);
     }
 
     @Test
@@ -93,7 +97,7 @@ class PersonalGymControllerTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.data.gymId").isNumber());
 
         long personalGymCount = gymRepository.findAll().stream()
-            .filter(g -> "PERSONAL".equals(g.getType()))
+            .filter(g -> g.getType() == GymType.PERSONAL)
             .count();
         assertThat(personalGymCount).isEqualTo(1);
 
@@ -148,14 +152,14 @@ class PersonalGymControllerTest extends BaseIntegrationTest {
         standardGym.setName("Gym Estandar");
         standardGym.setSlug("gym-estandar-test");
         standardGym.setOwnerUserId(admin.getId());
-        standardGym.setStatus("ACTIVE");
+        standardGym.setStatus(GymStatus.ACTIVE);
         standardGym = gymRepository.save(standardGym);
 
         GymMember memberInStandard = new GymMember();
         memberInStandard.setGymId(standardGym.getId());
         memberInStandard.setUserId(user.getId());
-        memberInStandard.setRole("MEMBER");
-        memberInStandard.setStatus("ACTIVE");
+        memberInStandard.setRole(GymMemberRole.MEMBER);
+        memberInStandard.setStatus(GymMemberStatus.ACTIVE);
         gymMemberRepository.save(memberInStandard);
 
         String templateJson = """

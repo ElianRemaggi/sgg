@@ -7,6 +7,9 @@ import com.sgg.identity.repository.UserRepository;
 import com.sgg.platform.dto.*;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+import com.sgg.tenancy.entity.GymStatus;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,11 +36,20 @@ public class PlatformGymServiceImpl implements PlatformGymService {
     @Override
     @Transactional(readOnly = true)
     public Page<GymSummaryDto> listGyms(String status, String search, Pageable pageable) {
-        String statusFilter = (status != null && !status.isBlank()) ? status : null;
+        GymStatus statusFilter = parseStatusOrNull(status);
         String searchFilter = (search != null && !search.isBlank()) ? search : null;
 
         return gymRepository.findAllWithFilters(statusFilter, searchFilter, pageable)
             .map(this::toSummaryDto);
+    }
+
+    private static GymStatus parseStatusOrNull(String status) {
+        if (status == null || status.isBlank()) return null;
+        try {
+            return GymStatus.valueOf(status);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     @Override
@@ -65,14 +77,14 @@ public class PlatformGymServiceImpl implements PlatformGymService {
         gym.setLogoUrl(request.logoUrl());
         gym.setRoutineCycle(request.routineCycle());
         gym.setOwnerUserId(owner.getId());
-        gym.setStatus("ACTIVE");
+        gym.setStatus(GymStatus.ACTIVE);
         gym = gymRepository.save(gym);
 
         GymMember ownerMember = new GymMember();
         ownerMember.setGymId(gym.getId());
         ownerMember.setUserId(owner.getId());
-        ownerMember.setRole("ADMIN");
-        ownerMember.setStatus("ACTIVE");
+        ownerMember.setRole(GymMemberRole.ADMIN);
+        ownerMember.setStatus(GymMemberStatus.ACTIVE);
         gymMemberRepository.save(ownerMember);
 
         log.info("Gym creado: {} (id={}) con owner: {} (id={})", gym.getName(), gym.getId(), owner.getFullName(), owner.getId());
@@ -106,18 +118,19 @@ public class PlatformGymServiceImpl implements PlatformGymService {
         Gym gym = gymRepository.findById(gymId)
             .orElseThrow(() -> new ResourceNotFoundException("Gym no encontrado"));
 
-        if (gym.getStatus().equals(request.status())) {
+        GymStatus newStatus = GymStatus.valueOf(request.status());
+        if (gym.getStatus() == newStatus) {
             throw new BusinessException("El gym ya tiene el status '" + request.status() + "'");
         }
 
-        if ("DELETED".equals(gym.getStatus())) {
+        if (gym.getStatus() == GymStatus.DELETED) {
             throw new BusinessException("No se puede cambiar el status de un gym eliminado");
         }
 
-        gym.setStatus(request.status());
+        gym.setStatus(newStatus);
         gymRepository.save(gym);
 
-        log.info("Gym {} (id={}) cambió status a {}", gym.getName(), gym.getId(), request.status());
+        log.info("Gym {} (id={}) cambió status a {}", gym.getName(), gym.getId(), newStatus);
     }
 
     @Override
@@ -125,16 +138,16 @@ public class PlatformGymServiceImpl implements PlatformGymService {
         Gym gym = gymRepository.findById(gymId)
             .orElseThrow(() -> new ResourceNotFoundException("Gym no encontrado"));
 
-        if ("DELETED".equals(gym.getStatus())) {
+        if (gym.getStatus() == GymStatus.DELETED) {
             throw new BusinessException("El gym ya fue eliminado");
         }
 
-        long activeMembers = gymMemberRepository.countByGymIdAndStatus(gymId, "ACTIVE");
+        long activeMembers = gymMemberRepository.countByGymIdAndStatus(gymId, GymMemberStatus.ACTIVE);
         if (activeMembers > 0 && !force) {
             throw new BusinessException("El gym tiene " + activeMembers + " miembros activos. Usá ?force=true para eliminar igualmente.");
         }
 
-        gym.setStatus("DELETED");
+        gym.setStatus(GymStatus.DELETED);
         gym.setDeletedAt(LocalDateTime.now());
         gymRepository.save(gym);
 
@@ -142,7 +155,7 @@ public class PlatformGymServiceImpl implements PlatformGymService {
     }
 
     private GymSummaryDto toSummaryDto(Gym gym) {
-        long membersCount = gymMemberRepository.countByGymIdAndStatus(gym.getId(), "ACTIVE");
+        long membersCount = gymMemberRepository.countByGymIdAndStatus(gym.getId(), GymMemberStatus.ACTIVE);
         User owner = userRepository.findById(gym.getOwnerUserId()).orElse(null);
 
         return new GymSummaryDto(
@@ -163,8 +176,8 @@ public class PlatformGymServiceImpl implements PlatformGymService {
             ? new UserSummaryDto(owner.getId(), owner.getFullName(), owner.getEmail())
             : null;
 
-        int activeMembers = (int) gymMemberRepository.countByGymIdAndStatus(gym.getId(), "ACTIVE");
-        int coaches = (int) gymMemberRepository.countByGymIdAndRoleAndStatus(gym.getId(), "COACH", "ACTIVE");
+        int activeMembers = (int) gymMemberRepository.countByGymIdAndStatus(gym.getId(), GymMemberStatus.ACTIVE);
+        int coaches = (int) gymMemberRepository.countByGymIdAndRoleAndStatus(gym.getId(), GymMemberRole.COACH, GymMemberStatus.ACTIVE);
         // Templates count placeholder — will be real when training module exists
         GymStatsDto stats = new GymStatsDto(activeMembers, coaches, 0);
 

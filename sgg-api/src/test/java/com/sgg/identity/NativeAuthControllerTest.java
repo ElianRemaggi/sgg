@@ -240,7 +240,7 @@ class NativeAuthControllerTest extends BaseIntegrationTest {
         user.setPasswordHash(passwordEncoder.encode("password123"));
         user = userRepository.save(user);
 
-        String token = nativeJwtConfig.generateToken(user);
+        String token = nativeJwtConfig.generateToken(user.getId(), user.getEmail());
 
         mockMvc.perform(get("/api/users/me")
                 .header("Authorization", "Bearer " + token))

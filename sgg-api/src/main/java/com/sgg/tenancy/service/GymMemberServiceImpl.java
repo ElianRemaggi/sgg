@@ -6,6 +6,9 @@ import com.sgg.common.exception.ResourceNotFoundException;
 import com.sgg.tenancy.dto.*;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+import com.sgg.tenancy.entity.GymStatus;
 import com.sgg.tenancy.event.CoachDeactivatedEvent;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
@@ -36,23 +39,24 @@ public class GymMemberServiceImpl implements GymMemberService {
         Gym gym = gymRepository.findByIdAndDeletedAtIsNull(gymId)
             .orElseThrow(() -> new ResourceNotFoundException("Gym no encontrado"));
 
-        if (!"ACTIVE".equals(gym.getStatus())) {
+        if (gym.getStatus() != GymStatus.ACTIVE) {
             throw new ResourceNotFoundException("Gym no encontrado");
         }
 
         boolean alreadyExists = gymMemberRepository.existsByGymIdAndUserIdAndStatusIn(
-            gymId, userId, List.of("PENDING", "ACTIVE")
+            gymId, userId, List.of(GymMemberStatus.PENDING, GymMemberStatus.ACTIVE)
         );
         if (alreadyExists) {
             throw new BusinessException("Ya tenés una membresía pendiente o activa en este gym");
         }
 
-        String status = Boolean.TRUE.equals(gym.getAutoAcceptMembers()) ? "ACTIVE" : "PENDING";
+        GymMemberStatus status = Boolean.TRUE.equals(gym.getAutoAcceptMembers())
+            ? GymMemberStatus.ACTIVE : GymMemberStatus.PENDING;
 
         GymMember member = new GymMember();
         member.setGymId(gymId);
         member.setUserId(userId);
-        member.setRole("MEMBER");
+        member.setRole(GymMemberRole.MEMBER);
         member.setStatus(status);
         gymMemberRepository.save(member);
 
@@ -64,15 +68,24 @@ public class GymMemberServiceImpl implements GymMemberService {
     @Override
     @Transactional(readOnly = true)
     public Page<GymMemberDto> listMembers(Long gymId, String status, String role, Pageable pageable) {
-        String statusFilter = "ALL".equals(status) ? null : status;
-        String roleFilter = "ALL".equals(role) ? null : role;
+        GymMemberStatus statusFilter = parseEnumOrNull(status, GymMemberStatus.class);
+        GymMemberRole roleFilter = parseEnumOrNull(role, GymMemberRole.class);
         return gymMemberRepository.findMembersByGymWithFilters(gymId, statusFilter, roleFilter, pageable);
+    }
+
+    private static <E extends Enum<E>> E parseEnumOrNull(String value, Class<E> enumType) {
+        if (value == null || "ALL".equals(value)) return null;
+        try {
+            return Enum.valueOf(enumType, value);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     @Override
     public void approveMember(Long gymId, Long memberId) {
         GymMember member = findMemberInGym(gymId, memberId);
-        member.setStatus("ACTIVE");
+        member.setStatus(GymMemberStatus.ACTIVE);
         gymMemberRepository.save(member);
         log.info("Member approved: memberId={}, gymId={}", memberId, gymId);
     }
@@ -80,10 +93,10 @@ public class GymMemberServiceImpl implements GymMemberService {
     @Override
     public void rejectMember(Long gymId, Long memberId) {
         GymMember member = findMemberInGym(gymId, memberId);
-        if (!"PENDING".equals(member.getStatus())) {
+        if (member.getStatus() != GymMemberStatus.PENDING) {
             throw new BusinessException("Solo se pueden rechazar membresías pendientes");
         }
-        member.setStatus("REJECTED");
+        member.setStatus(GymMemberStatus.REJECTED);
         gymMemberRepository.save(member);
         log.info("Member rejected: memberId={}, gymId={}", memberId, gymId);
     }
@@ -98,9 +111,9 @@ public class GymMemberServiceImpl implements GymMemberService {
             throw new AccessDeniedException("No se puede bloquear al owner del gym");
         }
 
-        member.setStatus("BLOCKED");
+        member.setStatus(GymMemberStatus.BLOCKED);
         gymMemberRepository.save(member);
-        if (List.of("COACH", "ADMIN_COACH").contains(member.getRole())) {
+        if (isCoachRole(member.getRole())) {
             eventPublisher.publishEvent(new CoachDeactivatedEvent(gymId, member.getUserId()));
         }
         log.info("Member blocked: memberId={}, gymId={}", memberId, gymId);
@@ -128,14 +141,14 @@ public class GymMemberServiceImpl implements GymMemberService {
             throw new AccessDeniedException("No podés cambiar tu propio rol");
         }
 
-        if (List.of("COACH", "ADMIN_COACH").contains(member.getRole())
-                && !List.of("COACH", "ADMIN_COACH").contains(request.role())) {
+        GymMemberRole newRole = GymMemberRole.valueOf(request.role());
+        if (isCoachRole(member.getRole()) && !isCoachRole(newRole)) {
             eventPublisher.publishEvent(new CoachDeactivatedEvent(gymId, member.getUserId()));
         }
 
-        member.setRole(request.role());
+        member.setRole(newRole);
         gymMemberRepository.save(member);
-        log.info("Role changed: memberId={}, gymId={}, newRole={}", memberId, gymId, request.role());
+        log.info("Role changed: memberId={}, gymId={}, newRole={}", memberId, gymId, newRole);
     }
 
     @Override
@@ -143,7 +156,7 @@ public class GymMemberServiceImpl implements GymMemberService {
     public List<MembershipDto> getUserMemberships(Long userId) {
         List<GymMember> memberships = gymMemberRepository.findByUserId(userId);
         return memberships.stream()
-            .filter(m -> "ACTIVE".equals(m.getStatus()) || "PENDING".equals(m.getStatus()))
+            .filter(m -> m.getStatus() == GymMemberStatus.ACTIVE || m.getStatus() == GymMemberStatus.PENDING)
             .map(m -> {
                 Gym gym = gymRepository.findByIdAndDeletedAtIsNull(m.getGymId()).orElse(null);
                 if (gym == null) return null;
@@ -154,6 +167,10 @@ public class GymMemberServiceImpl implements GymMemberService {
             })
             .filter(java.util.Objects::nonNull)
             .toList();
+    }
+
+    private static boolean isCoachRole(GymMemberRole role) {
+        return role == GymMemberRole.COACH || role == GymMemberRole.ADMIN_COACH;
     }
 
     private GymMember findMemberInGym(Long gymId, Long memberId) {

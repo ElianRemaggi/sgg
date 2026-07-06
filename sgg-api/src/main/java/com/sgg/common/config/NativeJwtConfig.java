@@ -1,6 +1,5 @@
 package com.sgg.common.config;
 
-import com.sgg.identity.entity.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.MacAlgorithm;
@@ -26,12 +25,12 @@ public class NativeJwtConfig {
         this.expirationMs = expirationMs;
     }
 
-    public String generateToken(User user) {
+    public String generateToken(Long userId, String email) {
         Date now = new Date();
         return Jwts.builder()
-                .subject(String.valueOf(user.getId()))
+                .subject(String.valueOf(userId))
                 .issuer("sgg")
-                .claim("email", user.getEmail())
+                .claim("email", email)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expirationMs))
                 .signWith(key, ALGORITHM)

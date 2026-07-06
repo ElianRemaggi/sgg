@@ -5,6 +5,9 @@ import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.UserRepository;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+import com.sgg.tenancy.entity.GymStatus;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,7 +59,7 @@ class JoinRequestControllerTest extends BaseIntegrationTest {
         gym.setName("CrossFit Norte");
         gym.setSlug("crossfit-norte");
         gym.setOwnerUserId(owner.getId());
-        gym.setStatus("ACTIVE");
+        gym.setStatus(GymStatus.ACTIVE);
         gym = gymRepository.save(gym);
     }
 
@@ -100,8 +103,8 @@ class JoinRequestControllerTest extends BaseIntegrationTest {
         GymMember existing = new GymMember();
         existing.setGymId(gym.getId());
         existing.setUserId(member.getId());
-        existing.setRole("MEMBER");
-        existing.setStatus("PENDING");
+        existing.setRole(GymMemberRole.MEMBER);
+        existing.setStatus(GymMemberStatus.PENDING);
         gymMemberRepository.save(existing);
 
         mockMvc.perform(post("/api/gyms/{gymId}/join-request", gym.getId())
@@ -115,8 +118,8 @@ class JoinRequestControllerTest extends BaseIntegrationTest {
         GymMember existing = new GymMember();
         existing.setGymId(gym.getId());
         existing.setUserId(member.getId());
-        existing.setRole("MEMBER");
-        existing.setStatus("ACTIVE");
+        existing.setRole(GymMemberRole.MEMBER);
+        existing.setStatus(GymMemberStatus.ACTIVE);
         gymMemberRepository.save(existing);
 
         mockMvc.perform(post("/api/gyms/{gymId}/join-request", gym.getId())

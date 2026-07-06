@@ -4,6 +4,8 @@ import com.sgg.common.exception.ResourceNotFoundException;
 import com.sgg.tenancy.dto.GymDto;
 import com.sgg.tenancy.dto.GymPublicDto;
 import com.sgg.tenancy.entity.Gym;
+import com.sgg.tenancy.entity.GymStatus;
+import com.sgg.tenancy.entity.GymType;
 import com.sgg.tenancy.mapper.GymMapper;
 import com.sgg.tenancy.repository.GymRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +24,7 @@ public class GymServiceImpl implements GymService {
 
     @Override
     public GymPublicDto searchBySlug(String slug) {
-        return gymRepository.findBySlugAndStatusAndType(slug, "ACTIVE", "STANDARD")
+        return gymRepository.findBySlugAndStatusAndType(slug, GymStatus.ACTIVE, GymType.STANDARD)
             .map(gymMapper::toPublicDto)
             .orElseThrow(() -> new ResourceNotFoundException("Gym no encontrado"));
     }
@@ -33,7 +35,7 @@ public class GymServiceImpl implements GymService {
             return List.of();
         }
         return gymRepository.findTop10ByNameContainingIgnoreCaseAndStatusAndTypeAndDeletedAtIsNullOrderByNameAsc(
-                query.trim(), "ACTIVE", "STANDARD")
+                query.trim(), GymStatus.ACTIVE, GymType.STANDARD)
             .stream()
             .map(gymMapper::toPublicDto)
             .toList();
@@ -43,7 +45,7 @@ public class GymServiceImpl implements GymService {
     public GymDto getGymInfo(Long gymId) {
         Gym gym = gymRepository.findByIdAndDeletedAtIsNull(gymId)
             .orElseThrow(() -> new ResourceNotFoundException("Gym no encontrado"));
-        if ("PERSONAL".equals(gym.getType())) {
+        if (gym.getType() == GymType.PERSONAL) {
             throw new ResourceNotFoundException("Gym no encontrado");
         }
         return gymMapper.toDto(gym);

@@ -4,6 +4,8 @@ import com.sgg.common.BaseIntegrationTest;
 import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.UserRepository;
 import com.sgg.tenancy.entity.Gym;
+import com.sgg.tenancy.entity.GymStatus;
+import com.sgg.tenancy.entity.GymType;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,7 +52,7 @@ class GymSearchControllerTest extends BaseIntegrationTest {
         gym.setSlug("crossfit-norte");
         gym.setDescription("El mejor gym del norte");
         gym.setOwnerUserId(owner.getId());
-        gym.setStatus("ACTIVE");
+        gym.setStatus(GymStatus.ACTIVE);
         gymRepository.save(gym);
 
         mockMvc.perform(get("/api/gyms/search").param("slug", "crossfit-norte"))
@@ -73,7 +75,7 @@ class GymSearchControllerTest extends BaseIntegrationTest {
         gym.setName("Gym Suspendido");
         gym.setSlug("gym-suspendido");
         gym.setOwnerUserId(owner.getId());
-        gym.setStatus("SUSPENDED");
+        gym.setStatus(GymStatus.SUSPENDED);
         gymRepository.save(gym);
 
         mockMvc.perform(get("/api/gyms/search").param("slug", "gym-suspendido"))
@@ -117,7 +119,7 @@ class GymSearchControllerTest extends BaseIntegrationTest {
         suspended.setName("CrossFit Suspendido");
         suspended.setSlug("crossfit-suspendido");
         suspended.setOwnerUserId(owner.getId());
-        suspended.setStatus("SUSPENDED");
+        suspended.setStatus(GymStatus.SUSPENDED);
         gymRepository.save(suspended);
 
         mockMvc.perform(get("/api/gyms/search/by-name").param("q", "CrossFit")
@@ -151,8 +153,8 @@ class GymSearchControllerTest extends BaseIntegrationTest {
         personalGym.setName("Entrenamiento personal");
         personalGym.setSlug("personal-" + owner.getId());
         personalGym.setOwnerUserId(owner.getId());
-        personalGym.setStatus("ACTIVE");
-        personalGym.setType("PERSONAL");
+        personalGym.setStatus(GymStatus.ACTIVE);
+        personalGym.setType(GymType.PERSONAL);
         gymRepository.save(personalGym);
 
         mockMvc.perform(get("/api/gyms/search").param("slug", "personal-" + owner.getId()))
@@ -165,8 +167,8 @@ class GymSearchControllerTest extends BaseIntegrationTest {
         personalGym.setName("Entrenamiento personal");
         personalGym.setSlug("personal-" + owner.getId());
         personalGym.setOwnerUserId(owner.getId());
-        personalGym.setStatus("ACTIVE");
-        personalGym.setType("PERSONAL");
+        personalGym.setStatus(GymStatus.ACTIVE);
+        personalGym.setType(GymType.PERSONAL);
         gymRepository.save(personalGym);
 
         createActiveGym("Entrenamiento Grupal", "entrenamiento-grupal");
@@ -184,8 +186,8 @@ class GymSearchControllerTest extends BaseIntegrationTest {
         personalGym.setName("Entrenamiento personal");
         personalGym.setSlug("personal-" + owner.getId());
         personalGym.setOwnerUserId(owner.getId());
-        personalGym.setStatus("ACTIVE");
-        personalGym.setType("PERSONAL");
+        personalGym.setStatus(GymStatus.ACTIVE);
+        personalGym.setType(GymType.PERSONAL);
         personalGym = gymRepository.save(personalGym);
 
         mockMvc.perform(get("/api/gyms/{gymId}/info", personalGym.getId())
@@ -198,7 +200,7 @@ class GymSearchControllerTest extends BaseIntegrationTest {
         gym.setName(name);
         gym.setSlug(slug);
         gym.setOwnerUserId(owner.getId());
-        gym.setStatus("ACTIVE");
+        gym.setStatus(GymStatus.ACTIVE);
         return gymRepository.save(gym);
     }
 }

@@ -3,8 +3,6 @@ package com.sgg.common.multitenancy;
 import com.sgg.common.exception.ResourceNotFoundException;
 import com.sgg.common.exception.TenantViolationException;
 import com.sgg.common.security.SecurityUtils;
-import com.sgg.tenancy.repository.GymMemberRepository;
-import com.sgg.tenancy.repository.GymRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,8 +28,7 @@ public class TenantInterceptor implements HandlerInterceptor {
     private static final Pattern GYM_ID_PATTERN = Pattern.compile("/api/gyms/(\\d+)(/.*)?");
     private static final List<String> SKIP_MEMBERSHIP_PATHS = List.of("/join-request", "/info");
 
-    private final GymRepository gymRepository;
-    private final GymMemberRepository gymMemberRepository;
+    private final GymTenantResolver gymTenantResolver;
     private final SecurityUtils securityUtils;
     private final EntityManager entityManager;
 
@@ -47,12 +44,12 @@ public class TenantInterceptor implements HandlerInterceptor {
         Long gymId = Long.parseLong(matcher.group(1));
         String subPath = matcher.group(2);
 
-        com.sgg.tenancy.entity.Gym gym = gymRepository.findByIdAndDeletedAtIsNull(gymId)
+        GymTenantInfo gym = gymTenantResolver.findGym(gymId)
             .orElseThrow(() -> new ResourceNotFoundException("Gym no encontrado"));
 
         TenantContext.setGymId(gymId);
-        TenantContext.setGymType(gym.getType());
-        TenantContext.setGymOwnerUserId(gym.getOwnerUserId());
+        TenantContext.setGymType(gym.type());
+        TenantContext.setGymOwnerUserId(gym.ownerUserId());
         enableHibernateFilter(gymId);
 
         if (shouldSkipMembershipCheck(subPath)) {
@@ -70,10 +67,9 @@ public class TenantInterceptor implements HandlerInterceptor {
 
         try {
             Long userId = securityUtils.getCurrentUserId();
-            com.sgg.tenancy.entity.GymMember member = gymMemberRepository
-                    .findByGymIdAndUserIdAndStatus(gymId, userId, "ACTIVE")
+            String role = gymTenantResolver.findActiveMemberRole(gymId, userId)
                     .orElseThrow(() -> new TenantViolationException("No tenés acceso a este gym"));
-            TenantContext.setCurrentMemberRole(member.getRole());
+            TenantContext.setCurrentMemberRole(role);
         } catch (com.sgg.common.exception.ResourceNotFoundException e) {
             // User not found in DB yet — let the request proceed, Spring Security handles auth
             return true;

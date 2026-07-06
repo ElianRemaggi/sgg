@@ -41,11 +41,13 @@ public class Gym {
     @Column(name = "auto_accept_members", nullable = false)
     private Boolean autoAcceptMembers = false;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String type = "STANDARD";
+    private GymType type = GymType.STANDARD;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String status = "ACTIVE";
+    private GymStatus status = GymStatus.ACTIVE;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
