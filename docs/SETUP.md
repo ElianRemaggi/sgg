@@ -213,29 +213,38 @@ docker-compose logs -f api
 
 ## Flyway — Migraciones
 
-Las migraciones se ejecutan automáticamente al iniciar el backend.
-El orden es el siguiente para la primera vez:
+Las migraciones se ejecutan automáticamente al iniciar el backend. Estado actual (ver
+`sgg-api/src/main/resources/db/migration/` para la lista definitiva — esta tabla se
+desactualiza con cada migración nueva):
 
 ```
 V1  → users
 V2  → auth_identities
 V3  → gyms
 V4  → gym_members
-V5  → coach_assignments
-V6  → routine_templates
-V7  → template_blocks
-V8  → template_exercises
-V9  → routine_assignments
-V10 → exercise_completions
-V11 → schedule_activities
-V12 → indexes
+V5  → routine_templates
+V6  → template_blocks
+V7  → template_exercises
+V8  → routine_assignments
+V9  → add_cascade_deletes
+V10 → native_auth_support
+V11 → gym_auto_accept_members
+V12 → exercise_completions
+V13 → schedule_activities
+V14 → fix_schedule_day_of_week_type
+V15 → add_username_to_users
+V16 → add_session_date_to_completions
+V17 → soft_delete_users
+V18 → create_coach_assignments
+V19 → create_gym_requests
+V20 → add_type_to_gyms
+V21 → enforce_role_status_enums
 ```
 
-Para agregar una nueva migración:
+Para agregar una nueva migración, usar el script del repo (numera automáticamente):
 ```bash
-# Crear el archivo con el siguiente número
-touch sgg-api/src/main/resources/db/migration/V13__descripcion.sql
-# Editar el SQL
+./scripts/new-migration.sh "descripcion_del_cambio"
+# Editar el SQL generado
 # Reiniciar la API: docker-compose restart api
 ```
 

@@ -16,26 +16,33 @@ const data = await apiClient<PageResponse<GymMemberDto>>(
 )
 ```
 
-**Filtros disponibles (query params en la URL):**
+**Filtros disponibles (query params en la URL, select en `members-view.tsx`):**
 - `status`: `ALL | PENDING | ACTIVE | BLOCKED | EXPIRED` (default: `ALL`)
 - `role`: `ALL | MEMBER | COACH | ADMIN | ADMIN_COACH` (default: `ALL`)
 - `search`: búsqueda por nombre o email (filtrado client-side para MVP)
 - `page`: número de página
 
-**Componentes:**
+> **Inconsistencia real (no corregida):** el select de status en el frontend ofrece
+> `EXPIRED`, pero `GymMemberStatus` en el backend no tiene ese valor (es
+> `PENDING|ACTIVE|REJECTED|BLOCKED|INACTIVE`, y tampoco tiene `REJECTED` como opción de filtro
+> en el select). Elegir "Expirados" no rompe nada — el backend hace `Enum.valueOf` con manejo
+> seguro de valor inválido (trata cualquier status no reconocible como "sin filtro" y devuelve
+> todos) — pero tampoco filtra por nada útil.
+
+**Componentes reales** (todo en `app/(dashboard)/gym/[gymId]/admin/members/`):
 ```
-MembersPage (Server Component)
-├── MembersFilters (Client Component — actualiza searchParams sin recargar)
-├── MembersTable (Client Component)
-│   ├── MemberRow (por cada miembro)
-│   │   ├── Avatar + nombre + email
-│   │   ├── RoleBadge (color por rol)
-│   │   ├── StatusBadge (color por status)
-│   │   ├── Fecha de vencimiento (rojo si < 30 días)
-│   │   └── MemberActions (menú desplegable)
-│   └── PaginationControls
-└── PendingRequestsBanner (si hay pendientes, mostrar contador destacado)
+page.tsx                  ← Server Component: lee searchParams, fetch, pasa a members-view
+members-view.tsx          ← Client Component principal: filtros + tabla + paginación +
+                             banner de pendientes inline (no es un componente separado)
+member-actions.tsx        ← Menú de acciones por fila (dropdown-menu de shadcn/ui)
+modals/
+├── change-role-dialog.tsx
+└── set-expiry-dialog.tsx
+actions.ts                ← Server Actions
+loading.tsx / error.tsx
 ```
+
+No existe una ruta de detalle `/admin/members/[memberId]` — todo el flujo vive en la lista.
 
 **MemberActions — menú por estado:**
 ```
@@ -90,74 +97,51 @@ export async function setMemberExpiry(gymId: string, memberId: number, expiresAt
 ```
 
 **Manejo de errores en actions:**
-- 409 al cambiar rol (coach con asignaciones activas): mostrar toast con mensaje del backend
 - 403 intentar modificar al owner: mostrar toast "No podés modificar al owner del gym"
 - Cualquier error: toast de error genérico + log en consola
 
-**Modal: Definir Vencimiento**
+**Modal: Definir Vencimiento (`set-expiry-dialog.tsx`)**
 - DatePicker con fecha mínima = hoy + 1 día
 - Botón "Sin vencimiento" para limpiar `membership_expires_at`
 - Confirmar → Server Action `setMemberExpiry`
 
-**Modal: Cambiar Rol**
+**Modal: Cambiar Rol (`change-role-dialog.tsx`)**
 - Select con opciones: MEMBER, COACH, ADMIN, ADMIN_COACH
 - Descripción de cada rol debajo del select
-- Si el target es COACH con asignaciones: mostrar advertencia antes de confirmar
-
----
-
-### /admin/members/[memberId] — Detalle de Miembro
-
-**Fetch:**
-```ts
-const member = await apiClient<GymMemberDetailDto>(
-  `/api/gyms/${gymId}/admin/members/${memberId}`
-)
-```
-
-**Secciones:**
-- Info básica: avatar, nombre, email, rol, status, fecha de unión, vencimiento
-- Historial de rutinas asignadas (lista simple con fechas)
-- Coach asignado (si tiene)
-- Acciones disponibles (mismo menú que en la tabla)
+- **No hay bloqueo ni warning por asignaciones de coach activas.** Si el target deja de ser
+  COACH/ADMIN_COACH, el backend publica `CoachDeactivatedEvent` y auto-desasigna sus
+  `coach_assignments` silenciosamente (ver `docs/backend/modules/02-tenancy.md` y
+  `03-coaching.md`) — no hay 409 ni confirmación adicional en el frontend para este caso.
 
 ---
 
 ## Estados de Carga y Error
 
-```ts
-// loading.tsx — skeleton mientras carga
-export default function Loading() {
-  return <MembersTableSkeleton rows={10} />
-}
-
-// error.tsx — si falla el fetch
-export default function Error({ error, reset }) {
-  return (
-    <div>
-      <p>Error al cargar los miembros: {error.message}</p>
-      <button onClick={reset}>Reintentar</button>
-    </div>
-  )
-}
-```
+`loading.tsx` (`MembersLoading`) renderiza skeletons (`animate-pulse`) para filtros + 10 filas
+inline, sin un componente `Skeleton` reutilizable separado. `error.tsx` sigue el patrón estándar
+de Next (boundary con `error`/`reset`) — ver `docs/frontend/FRONTEND-CONVENTIONS.md` para el
+patrón general.
 
 ---
 
 ## Tests
 
+**No hay test file para esta sección** (`members-view.tsx`, `member-actions.tsx`, los dialogs)
+— a diferencia de `admin/coaches` (`coaches-view.test.tsx`) o `coach/my-members`
+(`my-members-view.test.tsx`), que sí tienen cobertura Vitest + Testing Library. La lista de
+casos de abajo describe comportamiento esperado/manual, no verificado por CI.
+
 ```
-✅ Lista carga con datos del servidor y los renderiza
-✅ Filtro por status=PENDING muestra solo pendientes
-✅ Filtro por role=COACH muestra solo coaches
-✅ Aprobar miembro: llama Server Action, revalida y actualiza la lista
-✅ Rechazar miembro: llama Server Action, revalida
-✅ Bloquear miembro: pide confirmación, luego ejecuta
-✅ Cambiar rol a COACH: modal con select, confirma y actualiza
-✅ Cambiar rol de COACH con asignaciones activas: muestra warning 409
-✅ Definir vencimiento: DatePicker, confirma, actualiza badge de fecha
-✅ Owner del gym: menú de acciones no muestra opciones de modificación
-✅ Paginación: navegar a página 2 carga nuevos datos
-✅ Estado vacío (sin miembros): muestra mensaje apropiado
-✅ Sin permiso (COACH intenta acceder): middleware redirige
+- Lista carga con datos del servidor y los renderiza
+- Filtro por status=PENDING muestra solo pendientes
+- Filtro por role=COACH muestra solo coaches
+- Aprobar/Rechazar/Bloquear miembro: llama Server Action, revalida
+- Cambiar rol a COACH: modal con select, confirma y actualiza
+- Definir vencimiento: DatePicker, confirma, actualiza badge de fecha
+- Owner del gym: menú de acciones no muestra opciones de modificación
+- Paginación: navegar a página 2 carga nuevos datos
+- Estado vacío (sin miembros): muestra mensaje apropiado
 ```
+
+> COACH sí puede acceder a esta pantalla (el backend permite `isAdmin OR isCoach OR
+> SUPERADMIN` en `GET .../admin/members`) — no hay redirect de middleware para COACH acá.

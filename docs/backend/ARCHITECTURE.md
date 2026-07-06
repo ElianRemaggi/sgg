@@ -30,11 +30,14 @@ com.sgg
 │   ├── security/
 │   │   ├── DualJwtDecoder.java          # intenta HS384 nativo, fallback a Supabase JWKS
 │   │   ├── CustomJwtAuthenticationConverter.java
-│   │   ├── GymAccessChecker.java        # usado en @PreAuthorize
-│   │   └── SecurityUtils.java           # helper: getCurrentUserId()
+│   │   ├── SecurityUtils.java           # helper: getCurrentUserId()
+│   │   ├── CurrentUserResolver.java     # puerto implementado en identity (ver más abajo)
+│   │   └── ResolvedUser.java            # record (id, platformRole) — sin depender de identity
 │   ├── multitenancy/
 │   │   ├── TenantContext.java           # ThreadLocal<Long> gymId
-│   │   └── TenantInterceptor.java       # extrae y valida gymId del path
+│   │   ├── TenantInterceptor.java       # extrae y valida gymId del path
+│   │   ├── GymTenantResolver.java       # puerto implementado en tenancy (ver más abajo)
+│   │   └── GymTenantInfo.java           # record (gymId, ownerUserId, type) — sin depender de tenancy
 │   ├── exception/
 │   │   ├── GlobalExceptionHandler.java  # @RestControllerAdvice
 │   │   ├── BusinessException.java       # base para excepciones de negocio
@@ -50,8 +53,16 @@ com.sgg
 ├── training/        # ver docs/backend/modules/04-training.md
 ├── tracking/        # ver docs/backend/modules/05-tracking.md
 ├── schedule/        # ver docs/backend/modules/06-schedule.md
+├── coaching/        # ver docs/backend/modules/03-coaching.md
 └── platform/        # ver docs/backend/modules/07-platform.md
 ```
+
+`common` es una hoja: no importa nada de `tenancy` ni `identity`. Donde antes se hacía esa
+dependencia directa (`GymAccessChecker`/`TenantInterceptor` → `tenancy`;
+`SecurityUtils`/`CustomJwtAuthenticationConverter`/`NativeJwtConfig` → `identity`), ahora
+`common` define un puerto (interfaz + record) y el módulo dependiente lo implementa:
+`GymTenantResolver` → `tenancy.security.GymTenantResolverImpl`;
+`CurrentUserResolver` → `identity.security.CurrentUserResolverImpl`.
 
 ---
 
@@ -117,13 +128,24 @@ session.enableFilter("tenantFilter").setParameter("gymId", gymId);
 
 ### GymAccessChecker
 
-Bean usado en `@PreAuthorize` para validaciones más finas:
+Vive en `com.sgg.tenancy.security.GymAccessChecker` (no en `common` — `common` es una hoja
+y no puede depender de los repositorios de `tenancy`; ver `GymTenantResolver` más arriba
+para cómo `TenantInterceptor` resuelve esto). El bean se registra igual como
+`"gymAccessChecker"`, así que los `@PreAuthorize` que lo referencian por SpEL no cambian:
 
 ```java
-@PreAuthorize("@gymAccessChecker.isCoachOf(#gymId, #memberId)")
-@PreAuthorize("@gymAccessChecker.hasRole(#gymId, 'ADMIN')")
-@PreAuthorize("@gymAccessChecker.isSelfOrAdmin(#gymId, #userId)")
+@PreAuthorize("@gymAccessChecker.isAdmin(#gymId)")
+@PreAuthorize("@gymAccessChecker.isCoach(#gymId)")
+@PreAuthorize("@gymAccessChecker.isMember(#gymId)")
 ```
+
+Internamente compara contra los enums `GymMemberRole`/`GymMemberStatus` (`com.sgg.tenancy.entity`),
+no strings sueltos.
+
+`isCoach(gymId)` tiene un caso especial: si el gym del path es de tipo `PERSONAL`
+(`TenantContext.getGymType()`) y el usuario actual es su owner (`TenantContext.getGymOwnerUserId()`),
+se considera coach aunque su membresía real sea `MEMBER` — así el dueño de un gym personal
+puede crear/editar sus propias plantillas y auto-asignarse rutinas.
 
 ### DualJwtDecoder
 
@@ -149,10 +171,10 @@ public Jwt decode(String token) throws JwtException {
 
 Flujo:
 1. Recibe el JWT ya validado por `DualJwtDecoder`
-2. Extrae `sub`:
+2. Extrae `sub` y delega en `CurrentUserResolver.resolve(subject, isNativeToken)`:
    - JWT Supabase: `sub` = supabase_uid → busca user por `supabase_uid`
    - JWT nativo: `sub` = user id (Long como string) → busca user por `id`
-3. Si `platform_role = SUPERADMIN` → agrega `ROLE_SUPERADMIN`
+3. Si `ResolvedUser.platformRole() == "SUPERADMIN"` → agrega `ROLE_SUPERADMIN`
 4. Los roles por gym se resuelven en `TenantInterceptor` (dependen del path)
 
 ---
@@ -170,14 +192,14 @@ public class RoutineTemplateController {
     private final RoutineTemplateService templateService;
 
     @GetMapping
-    @PreAuthorize("@gymAccessChecker.hasRole(#gymId, 'COACH')")
+    @PreAuthorize("@gymAccessChecker.isCoach(#gymId)")
     public ApiResponse<List<RoutineTemplateDto>> getTemplates(
             @PathVariable Long gymId) {
         return ApiResponse.ok(templateService.findByGym(gymId));
     }
 
     @PostMapping
-    @PreAuthorize("@gymAccessChecker.hasRole(#gymId, 'COACH')")
+    @PreAuthorize("@gymAccessChecker.isCoach(#gymId)")
     public ApiResponse<RoutineTemplateDto> create(
             @PathVariable Long gymId,
             @Valid @RequestBody CreateRoutineTemplateRequest request) {

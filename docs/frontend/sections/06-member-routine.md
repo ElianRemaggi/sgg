@@ -159,23 +159,26 @@ Tres páginas anidadas compartidas por member y coach (via componentes reutiliza
 ### /member/history — Lista de asignaciones
 
 **Ruta:** `/gym/[gymId]/member/history`
-**Fetch (Server Component):**
+**Fetch (Server Component), paginado (`?page=0&size=20`):**
 ```ts
-GET /api/gyms/{gymId}/member/history/assignments
-→ AssignmentHistorySummaryDto[]
+GET /api/gyms/{gymId}/member/history/assignments?page={page}&size=20
+→ PageResponse<AssignmentHistorySummaryDto>
 ```
 
-**Componente:** `HistoryListView` (Client — maneja tab Activa/Pasadas)
+**Componente:** `HistoryListView` (Client — recibe `data: PageResponse<...>`, maneja tab Activa/Pasadas)
 
 **Layout:**
 ```
-Tabs: [Activa] [Pasadas (N)]
+Tabs: [Activa] [Pasadas]
 └── AssignmentCard por asignación
     ├── Nombre de plantilla + badge "Activa"
     ├── Fechas (startsAt → endsAt o "sin vencimiento")
     ├── "{totalCompletions} completions · {totalSessionDays} días entrenados"
     └── Navega a /member/history/{assignmentId}
+<Pagination /> (solo visible en la tab "Pasadas")
 ```
+El split Activa/Pasadas filtra dentro de la página cargada, no del total — ver el comentario en
+`history-list-view.tsx` y `docs/DEUDA.md` (DT-08).
 
 **Estado vacío por tab:**
 - Activa: "No tenés rutina activa."

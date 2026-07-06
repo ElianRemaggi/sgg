@@ -143,8 +143,16 @@ V9__add_cascade_deletes.sql
 V10__native_auth_support.sql
 V11__gym_auto_accept_members.sql
 V12__create_exercise_completions.sql
-V13__create_schedule_activities.sql   ← última migración aplicada
-V14__...                              ← próxima nueva migración
+V13__create_schedule_activities.sql
+V14__fix_schedule_day_of_week_type.sql
+V15__add_username_to_users.sql
+V16__add_session_date_to_completions.sql
+V17__soft_delete_users.sql
+V18__create_coach_assignments.sql
+V19__create_gym_requests.sql
+V20__add_type_to_gyms.sql
+V21__enforce_role_status_enums.sql    ← última migración aplicada
+V22__...                              ← próxima nueva migración (usar ./scripts/new-migration.sh)
 ```
 
 **Reglas:**
@@ -241,7 +249,7 @@ public void delete(Long gymId, Long templateId) {
     Long currentUserId = securityUtils.getCurrentUserId();
 
     if (!template.getCreatedBy().equals(currentUserId)
-            && !gymAccessChecker.hasRole(gymId, "ADMIN")) {
+            && !gymAccessChecker.isAdmin(gymId)) {
         throw new AccessDeniedException("Solo el creador o un admin puede eliminar esta plantilla");
     }
     template.setDeletedAt(LocalDateTime.now());
@@ -285,6 +293,14 @@ public interface RoutineTemplateMapper {
 <dependency>org.projectlombok:lombok</dependency>
 <dependency>org.mapstruct:mapstruct</dependency>
 <dependency>org.mapstruct:mapstruct-processor</dependency>
+
+<!-- Auth nativa (JWT propio, HS384) -->
+<dependency>io.jsonwebtoken:jjwt-api</dependency>
+<dependency>io.jsonwebtoken:jjwt-impl</dependency>
+<dependency>io.jsonwebtoken:jjwt-jackson</dependency>
+
+<!-- Export de plantillas (xlsx/csv) -->
+<dependency>org.apache.poi:poi-ooxml</dependency>
 
 <!-- Tests -->
 <dependency>spring-boot-starter-test</dependency>

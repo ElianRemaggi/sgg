@@ -2,8 +2,6 @@
 **Package:** `com.sgg.coaching`
 **Responsabilidad:** Asignación de coaches a members dentro de un gym.
 
-> ⚠️ **Este módulo está planificado pero NO implementado.** No existe código Java en `com.sgg.coaching`. Este documento describe el diseño para cuando se implemente.
-
 ---
 
 ## Entidades
@@ -17,13 +15,17 @@ CREATE TABLE coach_assignments (
     coach_user_id   BIGINT NOT NULL REFERENCES users(id),
     member_user_id  BIGINT NOT NULL REFERENCES users(id),
     assigned_at     TIMESTAMP NOT NULL DEFAULT NOW(),
-    unassigned_at   TIMESTAMP,
-    UNIQUE(gym_id, coach_user_id, member_user_id)
+    unassigned_at   TIMESTAMP
 );
 
-CREATE INDEX idx_coach_assignments_gym ON coach_assignments(gym_id);
-CREATE INDEX idx_coach_assignments_coach ON coach_assignments(coach_user_id, gym_id);
+CREATE INDEX idx_coach_assignments_gym    ON coach_assignments(gym_id);
+CREATE INDEX idx_coach_assignments_coach  ON coach_assignments(coach_user_id, gym_id);
 CREATE INDEX idx_coach_assignments_member ON coach_assignments(member_user_id, gym_id);
+
+-- Solo una asignación activa por par coach-member-gym
+CREATE UNIQUE INDEX idx_coach_assignments_active_unique
+    ON coach_assignments(gym_id, coach_user_id, member_user_id)
+    WHERE unassigned_at IS NULL;
 ```
 
 **Activa:** `unassigned_at IS NULL`
@@ -60,9 +62,9 @@ CREATE INDEX idx_coach_assignments_member ON coach_assignments(member_user_id, g
 { "coachUserId": 5, "memberUserId": 12 }
 ```
 **Validaciones:**
-- `coachUserId` tiene rol COACH o ADMIN_COACH en este gym
-- `memberUserId` tiene rol MEMBER en este gym
-- No existe ya una asignación activa entre este coach y este member (constraint único + `unassigned_at IS NULL`)
+- `coachUserId` tiene rol COACH o ADMIN_COACH, con membresía ACTIVE en este gym
+- `memberUserId` tiene rol MEMBER, con membresía ACTIVE en este gym
+- El member no tiene ya un coach activo en este gym (`existsByGymIdAndMemberUserIdAndUnassignedAtIsNull`) — un member solo puede tener **un** coach activo por gym, no uno por cada coach
 
 ---
 
@@ -113,5 +115,6 @@ CREATE INDEX idx_coach_assignments_member ON coach_assignments(member_user_id, g
 
 ## Notas de Implementación
 
-- Cuando se cambia el rol de un usuario de COACH → MEMBER (módulo tenancy), el módulo coaching debe verificar las asignaciones activas. La validación vive en `CoachAssignmentService.hasActiveAssignmentsAsCoach(gymId, userId)`.
-- Un member puede tener múltiples coaches en distintos gyms, pero solo uno por gym.
+- **Auto-desasignación por evento, no por bloqueo.** Cuando `tenancy` degrada a un usuario de COACH → MEMBER/ADMIN (`GymMemberServiceImpl.changeRole`) o lo bloquea (`blockMember`), publica un `CoachDeactivatedEvent(gymId, userId)`. `com.sgg.coaching.listener.CoachEventListener` escucha ese evento y desasigna (`unassigned_at = NOW()`) todas las `coach_assignments` activas donde ese usuario era coach. Esto invierte la dependencia: `tenancy` no importa nada de `coaching`, solo publica un evento genérico de Spring (`ApplicationEventPublisher`) que `coaching` consume.
+- `CoachAssignmentService.hasActiveAssignmentsAsCoach(gymId, userId)` existe como consulta de solo lectura, pero no tiene ningún caller en el código actual (ni bloquea el cambio de rol ni la alimenta ningún controller) — queda como utilidad expuesta para uso futuro.
+- Un member puede tener múltiples coaches en distintos gyms, pero solo uno activo por gym (ver constraint de servicio arriba).

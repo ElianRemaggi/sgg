@@ -8,41 +8,37 @@
 
 ### Lista de Coaches
 
-**Fetch (Server Component):**
+**Fetch (Server Component, `page.tsx`):**
 ```ts
-const [coaches, members] = await Promise.all([
-  apiClient<CoachDto[]>(`/api/gyms/${gymId}/admin/coaches`),
-  apiClient<PageResponse<GymMemberDto>>(
-    `/api/gyms/${gymId}/admin/members?role=MEMBER&status=ACTIVE&size=100`
-  )
+const [coachesRes, membersRes] = await Promise.all([
+  apiClient<ApiResponse<CoachSummaryDto[]>>(`/api/gyms/${gymId}/admin/coaches`),
+  apiClient<ApiResponse<PageResponse<GymMemberDto>>>(
+    `/api/gyms/${gymId}/admin/members?status=ACTIVE&role=MEMBER&size=200`
+  ),
 ])
 ```
 
-**Componentes:**
+**Componentes reales** (`app/(dashboard)/gym/[gymId]/admin/coaches/`):
 ```
-CoachesPage (Server Component)
-└── CoachesList (Client Component)
-    ├── CoachCard (por cada coach)
-    │   ├── Avatar + nombre + email
-    │   ├── Badge "X miembros asignados"
-    │   └── AssignMemberButton → abre modal
-    └── AssignCoachModal (Client Component)
-        ├── Select "Seleccionar coach"
-        ├── Select "Seleccionar miembro"
-        └── Botón Asignar
+page.tsx                  ← Server Component: fetch coaches + members, pasa a CoachesView
+coaches-view.tsx          ← Client Component: CoachesView — lista de coaches (Card por coach:
+                             nombre, email, badge "N alumnos", botón "Asignar alumno")
+assign-coach-dialog.tsx   ← AssignCoachDialog: select de miembro + botón Asignar
+actions.ts                ← Server Actions: assignCoach, unassignCoach
 ```
 
-**AssignCoachModal:**
-- Dos selects: coach y member
-- El select de coach muestra solo usuarios con rol COACH o ADMIN_COACH
-- El select de member muestra solo MEMBER activos sin coach asignado (filtrado client-side)
-- Al confirmar → `POST /api/gyms/{gymId}/admin/assign-coach`
-- Error 409 (ya asignado): toast "Este miembro ya tiene un coach asignado"
+**El prop `unassignedMembers`/`members` es engañoso:** en realidad es "todos los miembros
+`ACTIVE`/`MEMBER` del gym" (`GET .../admin/members?status=ACTIVE&role=MEMBER&size=200`), **sin
+filtrar** a los que ya tienen coach asignado. El dialog solo muestra un texto de ayuda ("Si el
+miembro ya tiene un coach asignado se mostrará un error") y confía en el 409 del backend
+(`existsByGymIdAndMemberUserIdAndUnassignedAtIsNull`) para rechazarlo.
 
-**CoachCard — lista de asignados:**
-- Expandible: al hacer click muestra los miembros asignados del coach
-- Cada miembro tiene botón "Desasignar" → `DELETE /api/gyms/{gymId}/admin/assign-coach/{id}`
-- Confirmación antes de desasignar: "¿Desasignar a {nombre} de {coach}?"
+**Sin UI para desasignar.** `unassignCoach(gymId, assignmentId)` existe en `actions.ts` (llama
+`DELETE /api/gyms/{gymId}/admin/assign-coach/{assignmentId}`) pero **no tiene ningún caller** —
+`coaches-view.tsx` no expande ni lista los miembros asignados de cada coach, así que hoy no hay
+forma de desasignar desde esta pantalla. La única desasignación real ocurre automáticamente
+cuando se le cambia el rol o se bloquea al coach desde Admin → Miembros (ver
+`docs/backend/modules/03-coaching.md`, `CoachDeactivatedEvent`).
 
 ---
 
@@ -58,21 +54,17 @@ const activities = await apiClient<ScheduleActivityDto[]>(
 // El admin ve TODAS (activas e inactivas), el endpoint público solo muestra activas
 ```
 
-**Componentes:**
+**Componentes reales** (`app/(dashboard)/gym/[gymId]/admin/schedule/`):
 ```
-SchedulePage (Server Component)
-├── WeeklyScheduleGrid (Client Component)
-│   └── Por cada día de la semana:
-│       ├── Nombre del día (Lunes, Martes...)
-│       └── Lista de ActivityCard en ese día
-│           ├── Nombre, horario, descripción
-│           ├── Badge "Activa" / "Inactiva"
-│           ├── Botón Editar → abre ActivityModal
-│           └── Botón Desactivar / Activar
-└── AddActivityButton → abre ActivityModal vacío
+page.tsx                    ← Server Component: fetch + pasa a ScheduleAdminView
+schedule-admin-view.tsx     ← ScheduleAdminView: agrupa por día (array DAYS fijo, Lunes..Domingo),
+                               por actividad: nombre/horario, botones Editar (lápiz) y
+                               Eliminar (tacho) — sin badge Activa/Inactiva visible
+schedule-form-dialog.tsx    ← ScheduleFormDialog: modal crear/editar (mismo componente para ambos)
+actions.ts                  ← Server Actions: createActivity, updateActivity, deleteActivity
 ```
 
-**ActivityModal (crear y editar):**
+**ScheduleFormDialog (crear y editar):**
 ```
 Campos:
 - Nombre (text, requerido, max 200 chars)
@@ -119,34 +111,42 @@ export async function updateActivity(gymId: string, activityId: number, data: Cr
   revalidatePath(`/gym/${gymId}/admin/schedule`)
 }
 
-export async function deactivateActivity(gymId: string, activityId: number) {
+export async function deleteActivity(gymId: string, activityId: number) {
   await apiClient(`/api/gyms/${gymId}/admin/schedule/${activityId}`, { method: 'DELETE' })
   revalidatePath(`/gym/${gymId}/admin/schedule`)
 }
 ```
+
+> El nombre de la action es `deleteActivity`, pero el DELETE del backend es lógico
+> (`is_active = false`, ver `docs/backend/modules/06-schedule.md`) — no hay delete físico.
 
 ---
 
 ## Tests
 
 ### Coaches
+`coaches-view.test.tsx` (Vitest + Testing Library, existe de verdad):
 ```
-✅ Lista coaches con conteo de miembros asignados
-✅ Expandir coach muestra sus miembros asignados
-✅ Modal asignar: selects se cargan con datos correctos
-✅ Asignar coach a miembro: éxito, lista se actualiza
-✅ Asignar duplicado: toast 409 con mensaje claro
-✅ Desasignar: pide confirmación, luego ejecuta y actualiza lista
+✅ Renderiza nombre, email y badge de conteo de miembros
+✅ Usa "alumno" en singular cuando el conteo es 1
 ✅ Estado vacío (sin coaches): mensaje "No hay coaches en este gym"
+✅ Deshabilita el botón Asignar cuando no hay miembros disponibles
+✅ Habilita el botón Asignar cuando hay miembros disponibles
+✅ Muestra "todos los miembros tienen coach" cuando no hay disponibles
+✅ Abre el dialog de asignación con el nombre del coach en el título
+✅ Puebla el select del dialog con los miembros disponibles
+✅ Llama assignCoach con los args correctos y cierra el dialog al tener éxito
+✅ Muestra toast de error y mantiene el dialog abierto si assignCoach falla
 ```
 
 ### Horarios
+
+**No hay test file** para `schedule-admin-view.tsx`/`schedule-form-dialog.tsx` — la lista de
+abajo describe comportamiento esperado, no verificado por CI.
 ```
-✅ Vista semanal: actividades agrupadas por día correctamente
-✅ Día sin actividades: columna vacía con opción de agregar
-✅ Crear actividad: modal se abre vacío, submit, aparece en grilla
-✅ Editar actividad: modal se abre con datos pre-cargados, submit actualiza
-✅ Hora fin antes de hora inicio: error de validación Zod, no envía
-✅ Desactivar: pide confirmación, badge cambia a "Inactiva"
-✅ Nombre en blanco: error de validación inline
+- Vista agrupa actividades por día (Lunes..Domingo) correctamente
+- Crear actividad: dialog vacío, submit, aparece en la lista
+- Editar actividad: dialog con datos pre-cargados, submit actualiza
+- Hora fin antes de hora inicio: error de validación, no envía
+- Nombre en blanco: error de validación inline
 ```

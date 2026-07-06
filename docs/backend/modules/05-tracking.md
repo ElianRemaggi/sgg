@@ -154,26 +154,36 @@ CREATE INDEX idx_exercise_completions_exercise_progress
 
 ### GET /api/gyms/{gymId}/member/history/assignments
 **Auth:** MEMBER | SUPERADMIN
-**Descripción:** Lista todas las asignaciones (activas y pasadas) del member, con estadísticas agregadas.
+**Descripción:** Lista todas las asignaciones (activas y pasadas) del member, con estadísticas agregadas. Paginado.
+**Query params:** `?page=0&size=20`
 
-**Response 200:**
+**Response 200:** `PageResponse<AssignmentHistorySummaryDto>`
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": 3,
-      "templateName": "Fuerza 5x5",
-      "startsAt": "2026-01-01T00:00:00",
-      "endsAt": "2026-01-31T23:59:59",
-      "isActive": false,
-      "totalSessionDays": 12,
-      "totalCompletions": 180,
-      "lastActivityAt": "2026-01-28T09:00:00"
-    }
-  ]
+  "data": {
+    "content": [
+      {
+        "id": 3,
+        "templateName": "Fuerza 5x5",
+        "startsAt": "2026-01-01T00:00:00",
+        "endsAt": "2026-01-31T23:59:59",
+        "isActive": false,
+        "totalSessionDays": 12,
+        "totalCompletions": 180,
+        "lastActivityAt": "2026-01-28T09:00:00"
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1,
+    "last": true
+  }
 }
 ```
+
+`CoachHistoryController.getMemberHistory` (`GET .../coach/history/{memberId}/assignments`) usa el mismo `PageResponse<AssignmentHistorySummaryDto>` y los mismos query params.
 
 **`isActive`:** `startsAt < now AND (endsAt IS NULL OR endsAt > now)`
 **`totalSessionDays`:** cantidad de días distintos en que completó al menos un ejercicio
@@ -435,6 +445,6 @@ public record ExerciseStatsDto(
 
 - **Una completion por día:** el constraint UNIQUE en `(assignment_id, exercise_id, user_id, session_date)` garantiza un registro por ejercicio por día. El servicio hace "buscar o crear" con la fecha de hoy.
 - **`is_completed = false`** representa el "undo" — se conserva el registro para no perder datos históricos de días anteriores.
-- **Aggregaciones batch:** `RoutineHistoryServiceImpl` usa `completionRepository.findStatsBatch` para evitar N+1 queries al listar el historial de asignaciones.
+- **Aggregaciones batch:** `RoutineHistoryServiceImpl` usa `completionRepository.findStatsBatch` para evitar N+1 queries al listar el historial de asignaciones — el batch opera solo sobre los ids de la página actual (DT-08), no reintroduce el N+1 de DT-04.
 - **Plantilla eliminada:** si la plantilla fue eliminada (soft delete o rediseño), `templateName` fallback es `"Plantilla eliminada"`.
-- **Coach sin coaching module:** actualmente el coach puede ver el historial de CUALQUIER member del gym (no solo sus asignados). Cuando se implemente el módulo `coaching`, se restringirá al subconjunto de members asignados.
+- **Coach ve cualquier member del gym, no solo sus asignados:** aunque el módulo `coaching` (`coach_assignments`) ya existe, `CoachHistoryController`/`TrackingController.getMemberProgress` siguen usando solo `@gymAccessChecker.isCoach(#gymId)` — cualquier coach del gym puede ver el historial/tracking de cualquier member, sin cruzar contra `coach_assignments`. Restringir al subconjunto asignado (vía `CoachAssignmentService`) queda pendiente.

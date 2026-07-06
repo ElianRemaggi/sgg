@@ -1,31 +1,39 @@
 # Frontend Web — Sección: Coach — Plantillas y Asignaciones
-**Rutas:** `/gym/[gymId]/coach/templates`, `/gym/[gymId]/coach/assign`
+**Rutas:** `/gym/[gymId]/coach/templates`, `/gym/[gymId]/coach/templates/new`, `/gym/[gymId]/coach/templates/[templateId]/edit`, `/gym/[gymId]/coach/assign`, `/gym/[gymId]/coach/my-members`, `/gym/[gymId]/coach/history/[memberId]`
 **Acceso:** COACH | ADMIN_COACH | SUPERADMIN
 
 ---
 
 ## /coach/templates — Lista de Plantillas
 
-**Fetch (Server Component):**
+**Fetch (Server Component), paginado (`?page=0&size=20`):**
 ```ts
-const templates = await apiClient<RoutineTemplateSummaryDto[]>(
-  `/api/gyms/${gymId}/coach/templates`
-)
+const [templatesRes, membershipsResult] = await Promise.allSettled([
+  apiClient<ApiResponse<PageResponse<RoutineTemplateSummaryDto>>>(
+    `/api/gyms/${gymId}/coach/templates?page=${page}&size=20`
+  ),
+  apiClient<ApiResponse<MembershipDto[]>>('/api/users/me/memberships'),
+])
+// templates es el contenido primario -> si rechaza, re-throw al error boundary del árbol
+// memberships solo alimenta isPersonalGym -> degrada en silencio si falla
+```
+Ver el patrón canónico Promise.all vs allSettled en `docs/frontend/FRONTEND-CONVENTIONS.md`.
+
+**Componentes reales** (`app/(dashboard)/gym/[gymId]/coach/templates/`):
+```
+page.tsx              ← Server Component: fetch + pasa a TemplatesView
+templates-view.tsx     ← TemplatesView (prop data: PageResponse<...>, isPersonalGym para copy
+                          distinto en gym personal): por plantilla → nombre, descripción,
+                          contador de bloques/ejercicios, botón Editar, botón Exportar a Excel,
+                          botón Eliminar, más <Pagination> al final de la grilla
+template-editor.tsx    ← Compartido entre /new y /[templateId] (edit)
+actions.ts
 ```
 
-**Componentes:**
-```
-TemplatesPage (Server Component)
-├── CreateTemplateButton → /coach/templates/new
-└── TemplatesList (Client Component)
-    └── TemplateCard (por cada plantilla)
-        ├── Nombre, descripción truncada
-        ├── "X bloques · X ejercicios"
-        ├── Creado por (nombre del coach)
-        ├── Fecha de creación
-        ├── Botón Editar → /coach/templates/[id]/edit
-        └── Botón Eliminar (con confirmación)
-```
+**Exportar a Excel:** el botón navega directo a
+`/api/gyms/{gymId}/templates/{templateId}/export?format=xlsx` — un **Route Handler** de Next
+(`app/api/gyms/[gymId]/templates/[templateId]/export/route.ts`) que proxea el `GET .../export`
+del backend (ver `docs/backend/modules/04-training.md`) y reenvía el archivo descargable.
 
 **Eliminar plantilla:**
 - Confirmación: "¿Eliminar la plantilla '{nombre}'? Esta acción no se puede deshacer."
@@ -141,18 +149,29 @@ async function handleSave(data: TemplateFormState) {
 
 ## /coach/assign — Asignar Rutina a Miembro
 
-**Fetch (Server Component):**
+**Fetch (Server Component, `page.tsx`):**
 ```ts
-const [templates, myMembers] = await Promise.all([
-  apiClient<RoutineTemplateSummaryDto[]>(`/api/gyms/${gymId}/coach/templates`),
-  apiClient<AssignedMemberDto[]>(`/api/gyms/${gymId}/coach/my-members`),
+const [templatesRes, membersRes] = await Promise.all([
+  apiClient<ApiResponse<PageResponse<RoutineTemplateSummaryDto>>>(
+    `/api/gyms/${gymId}/coach/templates?size=100`
+  ),
+  apiClient<ApiResponse<PageResponse<GymMemberDto>>>(
+    `/api/gyms/${gymId}/admin/members?status=ACTIVE&role=MEMBER&size=100`
+  ),
 ])
 ```
+El dropdown necesita la lista completa de plantillas, no una página — por eso pide `size=100`
+(igual que ya hacía con members) en vez de usar el `<Pagination>` de `/coach/templates`.
+
+**El listado de miembros NO viene de `/coach/my-members`.** Trae **todos** los `MEMBER` activos
+del gym (`GET /admin/members?status=ACTIVE&role=MEMBER`), no solo los asignados a este coach —
+cualquier coach puede asignarle una rutina a cualquier member del gym, esté o no en su lista de
+"mis miembros". Componente real: `AssignView` (`assign-view.tsx`).
 
 **Formulario (Client Component):**
 ```
-AssignRoutineForm
-├── Select "Miembro" (lista de mis asignados)
+AssignView
+├── Select "Miembro" (todos los MEMBER activos del gym, no solo los asignados al coach)
 ├── Select "Plantilla de rutina"
 ├── Preview de la plantilla seleccionada (bloques y ejercicios, colapsado)
 ├── DatePicker "Fecha de inicio"
@@ -182,36 +201,21 @@ const schema = z.object({
 
 ## /coach/my-members — Mis Miembros
 
-**Fetch:**
+**Fetch (`page.tsx`):**
 ```ts
-const members = await apiClient<AssignedMemberDto[]>(
+const members = await apiClient<ApiResponse<AssignedMemberDto[]>>(
   `/api/gyms/${gymId}/coach/my-members`
 )
 ```
 
-**MemberCard muestra:**
-- Foto, nombre, última actividad
-- Indicador visual de progreso de la rutina actual (porcentaje)
-- Link → `/gym/${gymId}/coach/progress/${memberId}`
+**Componente real:** `MyMembersView` (`my-members-view.tsx`, con test en `__tests__/`). Por cada
+member (`Card`): inicial del nombre, nombre completo, última actividad relativa (`date-fns`,
+locale `es`), badge de rutina activa (`CheckCircle2`/`XCircle` según `hasActiveRoutine`).
 
----
-
-## /coach/progress/[memberId] — Progreso de un Miembro
-
-**Fetch:**
-```ts
-const [member, progress] = await Promise.all([
-  apiClient<GymMemberDto>(`/api/gyms/${gymId}/admin/members/${memberId}`),
-  apiClient<TrackingProgressDto>(`/api/gyms/${gymId}/coach/tracking/${memberId}`),
-])
-```
-
-**Vista:**
-- Header: foto + nombre del miembro
-- Rutina activa: nombre, fechas
-- Lista de bloques con ejercicios
-- Cada ejercicio: ícono ✅ o ⬜ según `isCompleted`
-- Métricas: total completados / total, porcentaje, última actividad
+**No hay ruta `/coach/progress/[memberId]` ni indicador de progreso porcentual en esta vista.**
+Cada card es un `Link` directo a `/gym/${gymId}/coach/history/${member.userId}` — el detalle de
+progreso/tracking del member se ve en el historial (sección de abajo), no en una pantalla de
+"progreso" separada.
 
 ---
 
@@ -249,33 +253,33 @@ La página de lista tiene un link "← Mis miembros" hacia `/gym/${gymId}/coach/
 
 ## Tests
 
-### Editor de Plantillas
+**Único test file real de esta sección:** `coach/my-members/__tests__/my-members-view.test.tsx`.
+El editor de plantillas y `assign-view.tsx` no tienen test — lo de abajo describe
+comportamiento esperado, no verificado por CI.
+
+### my-members-view.test.tsx (real)
 ```
-✅ Crear plantilla: form vacío, agregar bloque, agregar ejercicio, guardar → POST
-✅ Editar plantilla: form pre-cargado con datos existentes → PUT
-✅ Guardar sin nombre: error de validación, no envía
-✅ Guardar sin bloques: error "Debe tener al menos un bloque"
-✅ Bloque sin nombre: error inline en el bloque
-✅ Ejercicio sin nombre: error inline en el ejercicio
-✅ Agregar múltiples bloques y ejercicios: estado local se actualiza
-✅ Eliminar ejercicio: se remueve del estado sin afectar otros
-✅ Eliminar bloque: se remueve con todos sus ejercicios
-✅ Editar plantilla con asignaciones activas: error 409, toast con mensaje
-✅ Cancelar: redirige sin guardar (sin llamada al API)
+✅ Renderiza el nombre completo del member
+✅ Estado vacío: "no tenés alumnos asignados"
+✅ Badge "Con rutina" cuando hasActiveRoutine=true
+✅ Badge "Sin rutina" cuando hasActiveRoutine=false
+✅ Link apunta a /coach/history/{userId}
+✅ Renderiza múltiples members
+✅ Avatar muestra la primera letra del nombre
 ```
 
-### Asignación
+### Editor de Plantillas (sin test — comportamiento esperado)
 ```
-✅ Selects se cargan con datos reales (members y templates)
-✅ Preview de plantilla aparece al seleccionar
-✅ Fecha de fin antes de inicio: error de validación
-✅ Sin miembro seleccionado: error de validación
-✅ Asignación exitosa: toast de éxito, form se resetea
+- Crear plantilla: form vacío, agregar bloque, agregar ejercicio, guardar → POST
+- Editar plantilla: form pre-cargado con datos existentes → PUT
+- Guardar sin nombre / sin bloques: error de validación, no envía
+- Editar plantilla con asignaciones activas: error 409, toast con mensaje
+- Exportar (botón nuevo, ver `GET .../export?format=xlsx|csv`): descarga el archivo
 ```
 
-### Progreso
+### Asignación (sin test — comportamiento esperado)
 ```
-✅ Lista de ejercicios con estado correcto (✅ / ⬜)
-✅ Métricas muestran porcentaje correcto
-✅ Miembro sin rutina activa: mensaje "Sin rutina asignada actualmente"
+- Selects se cargan con todos los MEMBER activos del gym y las plantillas
+- Fecha de fin antes de inicio: error de validación
+- Asignación exitosa: toast de éxito, form se resetea
 ```

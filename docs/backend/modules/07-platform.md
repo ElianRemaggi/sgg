@@ -4,21 +4,34 @@
 
 ---
 
-## Sin entidades propias
+## Entidades
 
-Este módulo opera directamente sobre entidades de otros módulos:
-- `Gym` y `GymMember` de `tenancy`
-- `User` de `identity`
+La mayor parte del módulo opera directamente sobre entidades de otros módulos (`Gym`/`GymMember`
+de `tenancy`, `User` de `identity`) sin tablas propias ni Hibernate Filter (no está scoped a
+un tenant). La excepción es `GymRequest` (feature "solicitar acceso" de la landing, V19):
 
-No crea tablas propias. No tiene Hibernate Filter (no está scoped a un tenant).
+### GymRequest
 
----
+```sql
+CREATE TABLE gym_requests (
+    id            BIGSERIAL PRIMARY KEY,
+    gym_name      VARCHAR(200) NOT NULL,
+    contact_name  VARCHAR(200) NOT NULL,
+    email         VARCHAR(255) NOT NULL,
+    phone         VARCHAR(50),
+    message       TEXT,
+    status        VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+                  CHECK (status IN ('PENDING','CONTACTED','APPROVED','REJECTED')),
+    created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
+);
 
-## Esquema
+CREATE INDEX idx_gym_requests_status     ON gym_requests(status);
+CREATE INDEX idx_gym_requests_created_at ON gym_requests(created_at DESC);
+```
 
-Este módulo no crea tablas propias. Opera sobre las tablas de `identity` y `tenancy`.
-
-Los campos que necesita (`platform_role` en users, `status` y `deleted_at` en gyms) forman parte del esquema original desde V1 y V3 respectivamente — no requieren migraciones adicionales.
+`status` es `String` (sin enum Java, a diferencia de `GymMember`/`Gym` — ver
+`docs/DEUDA.md` DT-01, que dejó este campo explícitamente fuera de alcance).
 
 ---
 
@@ -207,12 +220,53 @@ Todos requieren `ROLE_SUPERADMIN`. **No pasan por el TenantInterceptor.**
 
 ---
 
+## Endpoints — Gym Requests ("solicitar acceso")
+
+### POST /api/public/gym-requests
+**Controller:** `PublicGymRequestController`
+**Auth:** Público (bajo `/api/public/**`)
+**Descripción:** Formulario de la landing page para que alguien sin cuenta pida que se le dé de alta un gym. No crea ningún `Gym` — solo registra la solicitud para que un superadmin la gestione manualmente.
+
+**Request body:** `GymRequestSubmission`
+```json
+{
+  "gymName": "CrossFit Sur",
+  "contactName": "Ana Gómez",
+  "email": "ana@email.com",
+  "phone": "+54 9 11 1234-5678",
+  "message": "Nos interesa migrar desde una planilla de Excel"
+}
+```
+
+**Response 201:** `GymRequestDto` con `status: "PENDING"`.
+
+---
+
+### GET /api/platform/gym-requests
+**Controller:** `PlatformGymRequestController`
+**Auth:** SUPERADMIN (bajo `/api/platform/**`, sin `@PreAuthorize` propio — lo cubre el matcher de `SecurityConfig`)
+**Query params:** `?status=PENDING&page=0&size=20` (`status` es opcional; sin filtro trae todas)
+
+**Response 200:** `PageResponse<GymRequestDto>`, orden `created_at DESC`.
+
+---
+
+### PATCH /api/platform/gym-requests/{id}/status
+**Auth:** SUPERADMIN
+**Request body:** `UpdateGymRequestStatusRequest`
+```json
+{ "status": "CONTACTED" }
+```
+**Validación:** `status` debe ser uno de `PENDING|CONTACTED|APPROVED|REJECTED` (`@Pattern`). No hay transición de estados restringida — cualquier valor válido es aceptado desde cualquier estado actual. `APPROVED` **no** crea automáticamente un `Gym`; sigue siendo un paso manual (`POST /api/platform/gyms`) hecho por el superadmin.
+
+---
+
 ## DTOs
 
 ```java
 // Lista de gyms
 public record GymSummaryDto(
-    Long id, String name, String slug, String status,
+    Long id, String name, String slug, GymStatus status,
     Integer membersCount, String ownerName, String ownerEmail,
     LocalDateTime createdAt
 ) {}
@@ -220,11 +274,32 @@ public record GymSummaryDto(
 // Detalle de gym
 public record GymDetailDto(
     Long id, String name, String slug, String description,
-    String logoUrl, String routineCycle, String status,
+    String logoUrl, String routineCycle, GymStatus status,
     UserSummaryDto owner, GymStatsDto stats, LocalDateTime createdAt
 ) {}
 
+// stats.templates SIEMPRE es 0 hoy — placeholder que quedó desactualizado
+// (el comentario en PlatformGymServiceImpl dice "will be real when training module
+// exists", pero training ya existe; el conteo real nunca se conectó)
 public record GymStatsDto(Integer activeMembers, Integer coaches, Integer templates) {}
+
+// Gym requests ("solicitar acceso" desde la landing)
+public record GymRequestDto(
+    Long id, String gymName, String contactName, String email,
+    String phone, String message, String status, LocalDateTime createdAt
+) {}
+
+public record GymRequestSubmission(
+    @NotBlank @Size(max = 200) String gymName,
+    @NotBlank @Size(max = 200) String contactName,
+    @NotBlank @Email @Size(max = 255) String email,
+    @NotBlank @Size(max = 50) String phone,
+    @Size(max = 2000) String message
+) {}
+
+public record UpdateGymRequestStatusRequest(
+    @NotBlank @Pattern(regexp = "PENDING|CONTACTED|APPROVED|REJECTED") String status
+) {}
 
 // Crear gym
 public record CreateGymRequest(
@@ -301,11 +376,26 @@ public class WebMvcConfig implements WebMvcConfigurer {
 ✅ POST /platform/admins/{id}/demote — usuario no es superadmin: 400
 ```
 
+### GymRequestControllerTest
+```
+✅ POST /public/gym-requests — request válido: 201
+✅ POST /public/gym-requests — sin message (opcional): 201
+✅ POST /public/gym-requests — email inválido: 400
+✅ POST /public/gym-requests — faltan campos requeridos: 400
+✅ GET /platform/gym-requests — SUPERADMIN ve todas: 200
+✅ GET /platform/gym-requests?status=X — filtra correctamente
+✅ GET /platform/gym-requests — sin JWT: 401
+✅ GET /platform/gym-requests — JWT sin rol SUPERADMIN: 403
+✅ PATCH /platform/gym-requests/{id}/status — transición válida: 200
+✅ PATCH /platform/gym-requests/{id}/status — status inválido: 400
+✅ PATCH /platform/gym-requests/{id}/status — id no existe: 404
+```
+
 ---
 
 ## Notas de Implementación
 
-- El módulo `platform` importa directamente `GymRepository`, `GymMemberRepository` y `UserRepository` de los módulos `tenancy` e `identity`. No duplicar entidades.
+- El módulo `platform` importa directamente `GymRepository`, `GymMemberRepository` y `UserRepository` de los módulos `tenancy` e `identity` para el ABM de gyms/admins. La única entidad propia es `GymRequest` (con su propio `GymRequestRepository`), para la feature de gym requests.
 - Los stats del gym (`membersCount`, `coaches`, `templates`) se calculan con queries `COUNT` al momento de la petición. Para el MVP, queries directas son suficientes — no cachear.
 - El campo `reason` en el cambio de status se puede logear pero no hace falta persistirlo en el MVP. Si se quiere auditoría: crear tabla `gym_status_history` post-MVP.
 - Al hacer soft delete de un gym, los datos de sus miembros, rutinas, etc. permanecen en la BD. Solo el gym queda marcado como `DELETED`. Para acceder, el SUPERADMIN puede usar los endpoints `/api/platform/gyms/{id}` que no filtran por status.

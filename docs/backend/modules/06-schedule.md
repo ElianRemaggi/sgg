@@ -31,7 +31,7 @@ CREATE INDEX idx_schedule_activities_gym_day ON schedule_activities(gym_id, day_
 ## Endpoints
 
 ### GET /api/gyms/{gymId}/schedule
-**Auth:** Cualquier member activo del gym (MEMBER | COACH | ADMIN | ADMIN_COACH)
+**Auth:** `@PreAuthorize("isAuthenticated()")` — cualquier usuario autenticado; el `TenantInterceptor` ya exige membresía activa en el gym del path antes de llegar acá, así que en la práctica es "cualquier member activo del gym", sin distinguir MEMBER/COACH/ADMIN.
 **Descripción:** Listar horarios activos del gym, ordenados por día y hora.
 
 **Response 200:**
@@ -94,8 +94,9 @@ CREATE INDEX idx_schedule_activities_gym_day ON schedule_activities(gym_id, day_
 
 ### PUT /api/gyms/{gymId}/admin/schedule/{activityId}
 **Auth:** ADMIN | ADMIN_COACH | SUPERADMIN
-**Request body:** igual que POST
-**Validaciones:** igual que POST + la actividad debe pertenecer al gym del path
+**Request body:** `UpdateScheduleActivityRequest` — mismos campos que `CreateScheduleActivityRequest`,
+pero es un DTO distinto y `startTime`/`endTime` son `String` (no `LocalTime`) validados con `@NotBlank` en vez de `@NotNull`.
+**Validaciones:** mismos criterios que POST + la actividad debe pertenecer al gym del path
 
 ---
 
@@ -125,6 +126,15 @@ public record CreateScheduleActivityRequest(
     @NotNull @Min(1) @Max(7) Integer dayOfWeek,
     @NotNull LocalTime startTime,
     @NotNull LocalTime endTime
+) {}
+
+// DTO separado para PUT — nótese que startTime/endTime son String, no LocalTime
+public record UpdateScheduleActivityRequest(
+    @NotBlank @Size(max = 200) String name,
+    String description,
+    @NotNull @Min(1) @Max(7) Integer dayOfWeek,
+    @NotBlank String startTime,
+    @NotBlank String endTime
 ) {}
 ```
 

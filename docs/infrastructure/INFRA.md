@@ -36,7 +36,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    # NO expone puerto en producción
+    deploy:
+      resources:
+        limits: { cpus: '0.3', memory: 256M }
+    # Puerto NO expuesto en producción — solo accesible entre containers
 
   api:
     build:
@@ -48,33 +51,49 @@ services:
       SPRING_DATASOURCE_USERNAME: sgg_admin
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SUPABASE_JWKS_URI: ${SUPABASE_JWKS_URI}
-      APP_CORS_WEB_ORIGIN: https://web.tudominio.com
+      APP_JWT_SECRET: ${APP_JWT_SECRET}
+      APP_CORS_WEB_ORIGIN: ${APP_CORS_WEB_ORIGIN}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS}
       SPRING_PROFILES_ACTIVE: prod
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
     ports:
       - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits: { cpus: '0.8', memory: 512M }
 
   web:
     build:
       context: ./sgg-web
       dockerfile: Dockerfile
       target: production
+      args:
+        # Se embeben en el build — deben resolverse en build-time, no alcanza con environment:
+        NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
+        NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
     environment:
-      NEXT_PUBLIC_API_URL: https://api.tudominio.com
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
+      API_INTERNAL_URL: http://api:8080   # llamadas server-to-server dentro de la red de Docker
       NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
     ports:
       - "3000:3000"
     depends_on:
       - api
     restart: unless-stopped
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 256M }
 
 volumes:
   pg-data:
+    driver: local
 ```
 
 ---
@@ -89,26 +108,37 @@ version: '3.8'
 services:
   postgres:
     ports:
-      - "5432:5432"   # Exponer para conectarse con DBeaver / IntelliJ
+      - "5432:5432"   # Exponer para DBeaver / IntelliJ / psql local
 
   api:
     build:
       target: development
     volumes:
       - ./sgg-api:/workspace
-      - ~/.m2:/root/.m2   # Cachear dependencias Maven entre rebuilds
+      - ~/.m2:/root/.m2     # Cachear dependencias Maven entre rebuilds
+    ports:
+      - "8080:8080"
+      - "5005:5005"         # Puerto de debug JDWP
     environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sgg_dev   # BD de desarrollo separada
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DEVTOOLS_RESTART_ENABLED: "true"
       APP_CORS_WEB_ORIGIN: http://localhost:3000
-      APP_CORS_ALLOWED_ORIGINS: http://localhost:8081,exp://localhost:8081
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:8081,exp://localhost:8081,exp://192.168.1.0:8081
+      APP_JWT_SECRET: dev-secret-key-cambiar-en-produccion-min-32-chars!!
 
   web:
+    build:
+      target: development
     volumes:
       - ./sgg-web:/app
-      - /app/node_modules         # Previene que el bind mount pise node_modules
+      - /app/node_modules       # Evita que el bind mount pise node_modules del container
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8080
+      API_INTERNAL_URL: http://api:8080
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      NEXT_TELEMETRY_DISABLED: "1"
 ```
 
 ---
@@ -140,7 +170,7 @@ ENTRYPOINT ["java", \
 # Stage: desarrollo (con Maven para hot reload)
 FROM deps AS development
 WORKDIR /workspace
-EXPOSE 8080
+EXPOSE 8080 5005
 CMD ["mvn", "spring-boot:run", \
      "-Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"]
 ```
@@ -173,6 +203,11 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 EXPOSE 3000
 CMD ["node", "server.js"]
+
+FROM node:20-alpine AS development
+WORKDIR /app
+EXPOSE 3000
+CMD ["sh", "-c", "npm install && npm run dev"]
 ```
 
 **Requiere en `next.config.js`:**
@@ -344,8 +379,14 @@ export SGG_REMOTE_DIR=/home/ubuntu/sgg
 3. SSH al servidor → `git pull`
 4. Backup automático de BD
 5. `docker compose -f docker-compose.yml up --build -d`
-6. Health check: espera hasta 60s que `/actuator/health` responda
+6. Health check: espera hasta 60s que `http://localhost:8080/actuator/health` responda
 7. Muestra estado final de servicios
+
+> **Inconsistencia real:** `deploy.sh` chequea `/actuator/health`, pero el backend **no** tiene
+> `spring-boot-starter-actuator` como dependencia — ese path no existe. El endpoint de salud
+> real es `GET /api/public/health` (`HealthController`, público, devuelve `{"status": "UP"}`).
+> El health check del script de deploy probablemente esté chequeando un path que siempre
+> devuelve 404.
 
 ---
 

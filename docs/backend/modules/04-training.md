@@ -83,24 +83,36 @@ CREATE INDEX idx_routine_assignments_active ON routine_assignments(member_user_i
 
 ## Endpoints
 
-### GET /api/gyms/{gymId}/coach/templates
-**Auth:** COACH | ADMIN_COACH | SUPERADMIN
-**Descripción:** Listar plantillas creadas en este gym. El coach ve todas las del gym (no solo las propias).
+Todos los endpoints de `coach/templates` y `coach/assignments` usan
+`@PreAuthorize("@gymAccessChecker.isCoach(#gymId) or hasRole('SUPERADMIN')")` — recordar que
+`isCoach()` también es `true` para el owner de un gym `PERSONAL` (ver `docs/backend/modules/02-tenancy.md`).
 
-**Response 200:**
+### GET /api/gyms/{gymId}/coach/templates
+**Auth:** COACH | ADMIN_COACH | SUPERADMIN | owner de gym personal
+**Descripción:** Listar plantillas creadas en este gym, paginado. El coach ve todas las del gym (no solo las propias).
+**Query params:** `?page=0&size=20`
+
+**Response 200:** `PageResponse<RoutineTemplateSummaryDto>` (mismo wrapper que `admin/members` — ver `docs/backend/modules/02-tenancy.md`)
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": 1,
-      "name": "Rutina Fuerza 4 días",
-      "description": "...",
-      "blocksCount": 4,
-      "createdBy": { "id": 5, "fullName": "Carlos López" },
-      "createdAt": "2026-01-01T00:00:00"
-    }
-  ]
+  "data": {
+    "content": [
+      {
+        "id": 1,
+        "name": "Rutina Fuerza 4 días",
+        "description": "...",
+        "blocksCount": 4,
+        "createdBy": { "id": 5, "fullName": "Carlos López" },
+        "createdAt": "2026-01-01T00:00:00"
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1,
+    "last": true
+  }
 }
 ```
 
@@ -166,6 +178,14 @@ CREATE INDEX idx_routine_assignments_active ON routine_assignments(member_user_i
 
 ---
 
+### GET /api/gyms/{gymId}/coach/templates/{templateId}/export?format=xlsx|csv
+**Auth:** COACH | ADMIN_COACH | SUPERADMIN
+**Descripción:** Exporta la plantilla completa (bloques + ejercicios) a un archivo descargable. `format` default `xlsx`; también acepta `csv`. Cualquier otro valor → `BusinessException` → 409.
+**Servicio:** `RoutineExportService` (`RoutineExportServiceImpl`, usa Apache POI para xlsx).
+**Response 200:** `byte[]` con `Content-Type` y `Content-Disposition: attachment` según el formato — no pasa por `ApiResponse`.
+
+---
+
 ### POST /api/gyms/{gymId}/coach/assignments
 **Auth:** COACH | ADMIN_COACH | SUPERADMIN
 **Descripción:** Asignar una plantilla de rutina a un miembro.
@@ -190,10 +210,10 @@ CREATE INDEX idx_routine_assignments_active ON routine_assignments(member_user_i
 ---
 
 ### GET /api/gyms/{gymId}/member/routine
-**Auth:** MEMBER (el propio member)
+**Auth:** MEMBER | SUPERADMIN (`isMember(#gymId)`)
 **Descripción:** La rutina activa del member autenticado.
 
-**Response 200:**
+**Response 200:** `MemberRoutineDto` — bloques con sus ejercicios (`TemplateBlockDto`/`TemplateExerciseDto`), sin campo `isCompleted` propio: el estado de completado por ejercicio lo agrega el frontend/`tracking` combinando esta respuesta con `GET .../member/tracking/progress` (ver `docs/backend/modules/05-tracking.md`), no viene embebido acá.
 ```json
 {
   "success": true,
@@ -207,16 +227,9 @@ CREATE INDEX idx_routine_assignments_active ON routine_assignments(member_user_i
         "id": 1,
         "name": "Día 1 - Pecho y Tríceps",
         "dayNumber": 1,
+        "sortOrder": 0,
         "exercises": [
-          {
-            "id": 1,
-            "name": "Press de Banca",
-            "sets": 4,
-            "reps": "8-10",
-            "restSeconds": 90,
-            "notes": "Bajar controlado",
-            "isCompleted": false   ← viene del módulo tracking
-          }
+          { "id": 1, "name": "Press de Banca", "sets": 4, "reps": "8-10", "restSeconds": 90, "notes": "Bajar controlado", "sortOrder": 0 }
         ]
       }
     ]
@@ -224,22 +237,37 @@ CREATE INDEX idx_routine_assignments_active ON routine_assignments(member_user_i
 }
 ```
 
-**Nota:** El campo `isCompleted` por ejercicio se obtiene haciendo join con `exercise_completions` para el día actual. Si no hay registro = false.
-
 **Response 404:** si no tiene rutina activa (retornar mensaje amigable, no error duro).
 
 ---
 
 ### GET /api/gyms/{gymId}/member/routine/history
-**Auth:** MEMBER
-**Response 200:** Lista de asignaciones pasadas con nombre de plantilla y fechas.
+**Auth:** MEMBER | SUPERADMIN
+**Response 200:** Lista de `RoutineAssignmentDto` (asignaciones del member en este gym, incluye la activa) con nombre de plantilla y fechas. Para historial con progresión de peso y stats, ver `MemberHistoryController` en `docs/backend/modules/05-tracking.md`.
+
+---
+
+### POST /api/gyms/{gymId}/member/routine/finish
+**Auth:** MEMBER | SUPERADMIN
+**Descripción:** Finaliza (marca `ends_at = NOW()`) la rutina activa del member autenticado, para poder empezar/asignar otra sin conflicto. 404 si no tiene ninguna activa.
+**Response 200:** `ApiResponse<Void>`
 
 ---
 
 ## DTOs Clave
 
 ```java
-// Template completo (con bloques y ejercicios)
+// Lista de templates del gym
+public record RoutineTemplateSummaryDto(
+    Long id,
+    String name,
+    String description,
+    Integer blocksCount,
+    CreatorDto createdBy,   // record anidado: (Long id, String fullName)
+    LocalDateTime createdAt
+) {}
+
+// Template completo (con bloques y ejercicios) — GET/POST/PUT por id
 public record RoutineTemplateDetailDto(
     Long id,
     String name,
@@ -267,17 +295,33 @@ public record TemplateExerciseDto(
     Integer sortOrder
 ) {}
 
-// Para la vista del member (incluye estado de completion)
-public record MemberExerciseDto(
+// Rutina activa del member (GET /member/routine)
+public record MemberRoutineDto(
+    Long assignmentId,
+    String templateName,
+    LocalDateTime startsAt,
+    LocalDateTime endsAt,
+    List<TemplateBlockDto> blocks
+) {}
+
+// Historial de asignaciones (GET /member/routine/history)
+public record RoutineAssignmentDto(
     Long id,
-    String name,
-    Integer sets,
-    String reps,
-    Integer restSeconds,
-    String notes,
-    Boolean isCompleted   // null si no hay tracking aún
+    String templateName,
+    String memberName,
+    LocalDateTime startsAt,
+    LocalDateTime endsAt,
+    LocalDateTime createdAt
 ) {}
 ```
+
+### RoutineQueryService — facade de solo lectura para `tracking`
+
+`com.sgg.training.service.RoutineQueryService` expone consultas de training (asignaciones,
+bloques, ejercicios) devolviendo DTOs de solo-lectura (`AssignmentInfo`, `BlockWithExercisesInfo`,
+`ExerciseInfo`, `ExerciseWithBlockInfo`) — nunca entidades ni repositorios. Existe para que
+`tracking` no dependa de los repositorios internos de `training` (resuelto como parte de la
+deuda técnica DT-05, ver `docs/DEUDA.md`). No lo usan los controllers de este propio módulo.
 
 ---
 
@@ -296,8 +340,19 @@ public record MemberExerciseDto(
 ✅ DELETE /coach/templates/{id} — soft delete
 ✅ DELETE /coach/templates/{id} — con asignaciones activas: 409
 ✅ DELETE /coach/templates/{id} — ya eliminado: 404
-✅ Todos los endpoints: MEMBER intenta acceder: 403
+✅ Todos los endpoints: MEMBER intenta acceder: 403 (owner de gym personal sí puede)
 ✅ Todos los endpoints: sin JWT: 401
+```
+
+### RoutineTemplateExportControllerTest
+```
+✅ GET /{id}/export?format=xlsx — 200, Content-Type xlsx
+✅ GET /{id}/export — sin format: default xlsx, 200
+✅ GET /{id}/export?format=csv — 200, Content-Type csv + Content-Disposition
+✅ GET /{id}/export?format=invalido — 409
+✅ GET /{id}/export — MEMBER: 403
+✅ GET /{id}/export — sin JWT: 401
+✅ GET /{id}/export — template no existe: 404
 ```
 
 ### RoutineAssignmentControllerTest
@@ -311,11 +366,16 @@ public record MemberExerciseDto(
 ✅ GET /member/routine — COACH intenta acceder su propia ruta /member: 403
 ```
 
+> `POST /member/routine/finish` no tiene test class propia — se cubre indirectamente en
+> `PersonalGymControllerTest` (`finishActiveRoutine_thenCanStartAnother`,
+> `finishActiveRoutine_noActiveRoutine_returns404`), dentro del flujo de gym personal.
+
 ---
 
 ## Notas de Implementación
 
 - La creación de template (POST) debe hacerse en una sola `@Transactional`: si falla al guardar un ejercicio, debe hacer rollback de todo.
-- Al obtener `/member/routine`, hacer el join con `exercise_completions` filtrando por `completed_at` del día actual (o del bloque activo según el ciclo del gym).
+- `GET /member/routine` **no** incluye el estado de completado por ejercicio (`isCompleted`) — ese dato lo agrega el módulo `tracking` (`GET .../member/tracking/progress`), el frontend combina ambas respuestas. No hay join con `exercise_completions` en este módulo.
 - El `sort_order` en blocks y exercises permite reordenar sin renumerar todo. Usar múltiplos de 10 (0, 10, 20...) para facilitar inserciones entre elementos.
 - `reps` es String porque los entrenadores usan notaciones variadas: "10", "8-12", "AMRAP", "Al fallo", "30 seg". No intentar parsearlo a número.
+- Exportar a xlsx usa Apache POI (`org.apache.poi:poi-ooxml`); a csv es texto plano generado a mano (sin librería extra).

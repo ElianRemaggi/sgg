@@ -225,30 +225,8 @@ CREATE INDEX idx_auth_identities_user_id ON auth_identities(user_id);
 
 ---
 
-### GET /api/users/me/memberships
-**Auth:** Bearer JWT
-**Descripción:** Lista todos los gimnasios a los que pertenece el usuario con su rol en cada uno.
-
-**Response 200:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "membershipId": 5,
-      "gymId": 1,
-      "gymName": "CrossFit Norte",
-      "gymSlug": "crossfit-norte",
-      "gymLogoUrl": "https://...",
-      "role": "MEMBER",
-      "status": "ACTIVE",
-      "membershipExpiresAt": "2026-12-31T00:00:00"
-    }
-  ]
-}
-```
-
----
+> **Nota:** `GET /api/users/me/memberships` está documentado en `docs/backend/modules/02-tenancy.md`
+> — el controller (`MembershipController`) vive en `com.sgg.tenancy`, no en `identity`.
 
 ## DTOs
 
@@ -298,18 +276,6 @@ public record UpdateProfileRequest(
     @NotBlank @Size(min=2, max=200) String fullName,
     @URL @Size(max=500) String avatarUrl
 ) {}
-
-// Membership summary (para /me/memberships)
-public record MembershipDto(
-    Long membershipId,
-    Long gymId,
-    String gymName,
-    String gymSlug,
-    String gymLogoUrl,
-    String role,
-    String status,
-    LocalDateTime membershipExpiresAt
-) {}
 ```
 
 ---
@@ -346,9 +312,9 @@ Genera usernames únicos a partir del email para usuarios OAuth. Normaliza el pr
 ✅ PUT /api/users/me — actualiza fullName y avatarUrl
 ✅ PUT /api/users/me — fullName en blanco: 400
 ✅ DELETE /api/users/me — anonimiza cuenta y retorna 200
-✅ GET /api/users/me/memberships — retorna lista de gyms con roles
-✅ GET /api/users/me/memberships — usuario sin gyms: lista vacía
 ```
+
+> `GET /api/users/me/memberships` se testea en `com.sgg.tenancy.MembershipControllerTest`.
 
 ---
 
@@ -361,8 +327,8 @@ Genera usernames únicos a partir del email para usuarios OAuth. Normaliza el pr
 
 ## Notas de Implementación
 
-- **Auth Supabase:** el `sub` del JWT es el `supabase_uid`. `CustomJwtAuthenticationConverter` busca el user por `supabase_uid`.
+- **Auth Supabase:** el `sub` del JWT es el `supabase_uid`. `CustomJwtAuthenticationConverter` (en `common.security`) resuelve el user vía el puerto `CurrentUserResolver`, implementado en `identity.security.CurrentUserResolverImpl` (busca por `supabase_uid`).
 - **Auth nativa:** el `sub` del JWT HS384 es el `id` del User (Long como string). `DualJwtDecoder` intenta primero HS384, si falla prueba JWKS de Supabase.
-- `SecurityUtils.getCurrentUserId()` funciona con ambos tipos de JWT.
+- `SecurityUtils.getCurrentUserId()` funciona con ambos tipos de JWT (también vía `CurrentUserResolver`, cacheado por request).
 - `platform_role = SUPERADMIN` solo se setea via `/api/platform/admins/promote` — nunca en register ni sync.
 - Queries de unicidad siempre filtran `deleted_at IS NULL` para no colisionar con cuentas eliminadas.

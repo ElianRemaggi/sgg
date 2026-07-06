@@ -91,9 +91,10 @@ await fetch(`${API_URL}/api/public/auth/register`, {
 ## /select-gym
 
 **Comportamiento:**
-- Lista membresías activas del usuario
+- Lista membresías activas del usuario (`gym-selector.tsx`)
 - Redirect automático si tiene un solo gym activo
-- Si no tiene gyms → muestra estado vacío con búsqueda por slug
+- Si no tiene gyms (o igual, siempre visible) → `gym-search.tsx` para buscar/unirse a un gym `STANDARD` por slug o nombre
+- **`personal-gym-create-button.tsx`** (Client Component): botón "Empezar entrenamiento personal" — llama `POST /api/users/me/personal-gym` vía `lib/api/browser.ts` (fetch client-side, sin Server Action) y redirige directo a `/gym/{gymId}/member/routine` con el gym recién creado/existente.
 
 **Fetch (Server Component via `apiClient`):**
 ```ts
@@ -117,10 +118,14 @@ switch (role) {
 ```
 Request entrante
   ├── pathname === '/' → redirect /landing
-  ├── pathname.startsWith('/landing') o '/privacy' → pasar (público)
+  ├── pathname.startsWith('/landing') o '/auth/' (callback OAuth) → pasar (público)
   ├── No autenticado + ruta protegida → redirect /login
   └── Autenticado + /login o /register → redirect /select-gym
 ```
+
+> `/privacy` **no** está en la lista de rutas públicas del middleware pese a ser contenido
+> público — hoy queda detrás del check de autenticación (comportamiento real, no un error de
+> esta doc).
 
 **Autenticación detectada:**
 - Cookie `sgg-token` (JWT nativo, httpOnly)

@@ -58,6 +58,37 @@ export function MembersClientView({ initialData, gymId }) {
 
 ---
 
+## Loading y Error States — Patrón Canónico
+
+Cada árbol de rutas (`gym/[gymId]/` y `platform/`) tiene un `error.tsx` + `loading.tsx` propio,
+sibling de su `layout.tsx`. Cubren automáticamente **todas** las páginas hijas que no definan
+los suyos — Next.js usa el boundary más específico si existe (ej. `admin/members/error.tsx`),
+y si no, cae al del árbol (`gym/[gymId]/error.tsx`). El `layout.tsx` de cada árbol (sidebar)
+queda montado porque el boundary vive un nivel por debajo, no reemplaza el layout.
+
+Con eso ya resuelto, la única decisión por página es **cómo tratar cada fetch**:
+
+- **Un solo fetch, es el contenido de la página:** no envolver en `try/catch` — dejar que tire
+  y lo agarre el `error.tsx` del árbol (o uno más específico si la página lo justifica).
+- **Varios fetches igual de críticos** (sin ninguno no hay nada que mostrar, ej.
+  `coach/assign`: sin templates y sin members no tiene sentido la pantalla): `Promise.all`,
+  sin catch — cualquier falla tira al error boundary.
+- **Contenido primario + datos secundarios/cosméticos** (ej. `coach/templates`: la lista de
+  plantillas es el contenido, `memberships` solo alimenta un flag de copy): `Promise.allSettled`,
+  chequear `.status` de cada resultado — si el fetch primario rechaza, re-throw (`if (x.status
+  === 'rejected') throw x.reason`) para que siga yendo al error boundary; si el secundario
+  rechaza, degradar en silencio (valor default) sin mostrar error. Ver
+  `gym/[gymId]/coach/templates/page.tsx` y `gym/[gymId]/member/routine/page.tsx`.
+- **Ausencia de datos que es un estado válido, no un error** (ej. historial vacío para un
+  usuario nuevo): `try/catch` puntual con fallback a lista vacía — esto es distinto de "el
+  fetch falló", es "todavía no hay nada que mostrar". Ver `member/history/page.tsx`.
+
+**Paginación:** usar `PageResponse<T>` (backend) + el componente compartido
+`@/components/ui/pagination` (`<Pagination page totalPages totalElements last onPageChange />`)
+en vez de reimplementar los botones Anterior/Siguiente en cada vista.
+
+---
+
 ## Server Actions — Patrón Completo
 
 ```ts
@@ -146,18 +177,19 @@ export const urlOrEmptySchema = z
 
 ## Estructura de Archivos por Sección
 
+Convención general: `kebab-case.tsx` para archivos, componente exportado en PascalCase. Ejemplo real:
+
 ```
-app/(dashboard)/gym/[gymId]/(admin)/members/
+app/(dashboard)/gym/[gymId]/admin/members/
 ├── page.tsx              ← Server Component (fetch + layout)
 ├── loading.tsx           ← Skeleton (automático de Next.js)
 ├── error.tsx             ← Error boundary (automático de Next.js)
 ├── actions.ts            ← Server Actions ('use server')
-├── MembersTable.tsx      ← Client Component principal
-├── MemberRow.tsx         ← Sub-componente
-├── MemberActions.tsx     ← Menú desplegable
+├── members-view.tsx      ← Client Component principal (tabla + filtros)
+├── member-actions.tsx    ← Menú de acciones por fila (aprobar/rechazar/bloquear/rol)
 └── modals/
-    ├── ChangeRoleModal.tsx
-    └── SetExpiryModal.tsx
+    ├── change-role-dialog.tsx
+    └── set-expiry-dialog.tsx
 ```
 
 ---
@@ -212,17 +244,17 @@ totalExercisesToday?: number
 ```json
 {
   "dependencies": {
-    "next": "15.x",
-    "@supabase/ssr": "^0.5.x",
-    "@supabase/supabase-js": "^2.x",
-    "react-hook-form": "^7.x",
-    "@hookform/resolvers": "^3.x",
-    "zod": "^3.x",
-    "class-variance-authority": "^0.7.x",
-    "clsx": "^2.x",
-    "tailwind-merge": "^2.x",
-    "lucide-react": "^0.4xx",
-    "tailwindcss": "^3.4.x"
+    "next": "14.2.35",
+    "@supabase/ssr": "^0.9.0",
+    "@supabase/supabase-js": "^2.99.3",
+    "react-hook-form": "^7.71.2",
+    "@hookform/resolvers": "^5.2.2",
+    "zod": "^4.3.6",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.5.0",
+    "lucide-react": "^0.577.0",
+    "tailwindcss": "^3.4.1"
   }
 }
 ```

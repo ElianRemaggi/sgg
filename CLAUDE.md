@@ -69,21 +69,19 @@ sgg/
 com.sgg
 ├── common/        # config, security, multitenancy, exceptions, DTOs base
 ├── identity/      # users, auth sync con Supabase + native auth
-├── tenancy/       # gyms, gym_members, membresías
+├── tenancy/       # gyms, gym_members, membresías, gyms personales (self-service)
 ├── training/      # routine_templates, blocks, exercises, assignments
-├── tracking/      # exercise_completions
+├── tracking/      # exercise_completions, historial de rutinas con progresión de peso
 ├── schedule/      # schedule_activities
+├── coaching/      # coach_assignments: asignación de coach a miembro, "mis miembros"
 └── platform/      # superadmin: ABM de gyms y gestión de admins
 ```
-
-> **Nota:** El módulo `coaching` (coach_assignments) está planificado pero **no implementado** aún.
-> El proyecto `sgg-app` (React Native) está planificado pero **no existe** en el repositorio todavía.
 
 Dependencias (solo en esta dirección, nunca al revés):
 ```
 identity ← tenancy ← training ← tracking
-                          ↑
-                    schedule (solo depende de tenancy)
+                          ↑           ↑
+                    schedule    coaching (también depende de identity)
 platform → tenancy, identity
 ```
 
@@ -231,7 +229,7 @@ cd sgg-app && npx expo start --tunnel   # si hay problemas de red en WSL2
 - Módulo Schedule: `docs/backend/modules/06-schedule.md`
 - Módulo Platform: `docs/backend/modules/07-platform.md`
 - Frontend Web — Arquitectura y patrones: `docs/frontend/FRONTEND.md`
-- Frontend Web — Testing: `docs/frontend/TESTING.md` *(nota: las rutas reales usan `/gym/[gymId]/admin/`, `/gym/[gymId]/coach/`, `/gym/[gymId]/member/` — sin grupos de ruta `(admin)`/`(coach)` como indica la doc)*
+- Frontend Web — Testing: `docs/frontend/TESTING.md`
 - Frontend Web — Landing Page: `docs/frontend/sections/00-landing.md`
 
 - Frontend Web — Convenciones: `docs/frontend/FRONTEND-CONVENTIONS.md`

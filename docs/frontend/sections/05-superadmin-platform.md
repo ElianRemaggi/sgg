@@ -24,9 +24,10 @@ export default async function PlatformLayout({ children }) {
 }
 ```
 
-**PlatformSidebar links:**
+**PlatformSidebar links** (`src/components/platform-sidebar.tsx`):
 - 🏢 Gimnasios → `/platform/gyms`
 - 👑 Superadmins → `/platform/admins`
+- 📥 Solicitudes → `/platform/gym-requests`
 
 ---
 
@@ -44,25 +45,17 @@ const data = await apiClient<PageResponse<GymSummaryDto>>(
 - `search`: texto libre (nombre o slug)
 - `page`
 
-**Componentes:**
+**Componentes reales** (`app/(dashboard)/platform/gyms/`):
 ```
-PlatformGymsPage (Server Component)
-├── PlatformFilters (Client — actualiza searchParams)
-├── CreateGymButton → /platform/gyms/new
-└── GymsTable
-    └── GymRow (por cada gym)
-        ├── Nombre + slug
-        ├── Owner (nombre + email)
-        ├── Cantidad de miembros activos
-        ├── StatusBadge (ACTIVE=verde, SUSPENDED=amarillo, DELETED=gris)
-        ├── Fecha de creación
-        └── RowActions (menú)
-            ├── 👁️ Ver detalle → /platform/gyms/{id}
-            ├── ✏️ Editar → /platform/gyms/{id} (modo edición)
-            ├── 🏠 Entrar como admin → /gym/{id}/admin/members
-            ├── ⏸️ Suspender (si ACTIVE)
-            ├── ▶️ Reactivar (si SUSPENDED)
-            └── 🗑️ Eliminar (con confirmación fuerte)
+page.tsx                ← Server Component: fetch + pasa a GymsView
+gyms-view.tsx           ← GymsView: filtros + tabla (nombre/slug, owner, miembros activos,
+                           status badge, fecha, menú de acciones por fila)
+delete-gym-dialog.tsx   ← DeleteGymDialog: confirmación con input de slug
+actions.ts              ← suspendGym, reactivateGym, deleteGym
+new/page.tsx            ← CreateGymPage (form inline, sin componente separado)
+[gymId]/
+├── page.tsx            ← Detalle
+└── gym-detail-actions.tsx  ← GymDetailActions: suspender/reactivar/eliminar/entrar como admin
 ```
 
 **Confirmación para Suspender:**
@@ -114,9 +107,8 @@ export async function deleteGym(gymId: number, force = false) {
 
 ## /platform/gyms/new — Crear Gym
 
-**Formulario (Client Component):**
+**Formulario (`CreateGymPage`, Client Component en `new/page.tsx`):**
 ```
-CreateGymForm
 ├── Nombre (text, requerido, max 200)
 ├── Slug (text, requerido, max 100)
 │   └── Auto-generado desde el nombre (kebab-case, en tiempo real)
@@ -159,10 +151,46 @@ const gym = await apiClient<GymDetailDto>(`/api/platform/gyms/${gymId}`)
 **Secciones:**
 - Info del gym (nombre, slug, ciclo, logo) + botón Editar inline
 - Owner: nombre, email, link al perfil
-- Stats: miembros activos, coaches, plantillas
+- Stats: miembros activos, coaches, plantillas — el conteo de **plantillas siempre muestra 0**
+  (`GymStatsDto.templates` es un placeholder hardcodeado en el backend que nunca se conectó al
+  módulo training real, ver `docs/backend/modules/07-platform.md`)
 - Status actual con botón de acción rápida (Suspender / Reactivar)
 - Botón "Entrar como admin" → redirect a `/gym/{gymId}/admin/members`
 - Zona de peligro: Eliminar gym (con confirmación de slug)
+
+---
+
+## /platform/gym-requests — Solicitudes de Gimnasio
+
+Bandeja de las solicitudes enviadas desde el formulario público de la landing (`POST
+/api/public/gym-requests` — ver `docs/backend/modules/07-platform.md`). Componentes reales:
+`page.tsx` (Server Component) + `gym-requests-view.tsx` (`GymRequestsView`) + `actions.ts`
+(`updateGymRequestStatus`).
+
+**Fetch:**
+```ts
+GET /api/platform/gym-requests?status={status}&page={page}&size=20
+```
+
+**Tabla:** nombre del gym, contacto, email, teléfono, mensaje, badge de status con color, fecha,
+menú de acciones (`DropdownMenu`) con las transiciones válidas.
+
+**Transiciones de status — restricción solo en el frontend:**
+```ts
+const statusTransitions: Record<string, string[]> = {
+  PENDING:   ['CONTACTED', 'REJECTED'],
+  CONTACTED: ['APPROVED', 'REJECTED'],
+  APPROVED:  ['REJECTED'],
+  REJECTED:  ['CONTACTED'],
+}
+```
+El backend (`PATCH /api/platform/gym-requests/{id}/status`) acepta cualquiera de los 4 valores
+sin validar la transición — este mapa es puramente de UX (qué opciones mostrar en el menú), no
+un espejo de una regla de negocio del backend.
+
+**`APPROVED` no crea un gym automáticamente.** Marcar una solicitud como aprobada es solo un
+cambio de estado — el superadmin todavía tiene que ir a `/platform/gyms/new` y crear el gym
+manualmente con los datos del contacto.
 
 ---
 
@@ -173,17 +201,13 @@ const gym = await apiClient<GymDetailDto>(`/api/platform/gyms/${gymId}`)
 const admins = await apiClient<SuperAdminDto[]>('/api/platform/admins')
 ```
 
-**Componentes:**
+**Componentes reales** (`app/(dashboard)/platform/admins/`):
 ```
-PlatformAdminsPage (Server Component)
-├── CurrentUserBadge ("Sos uno de X superadmins")
-├── PromoteUserSection
-│   ├── Input búsqueda de usuario (email o nombre)
-│   └── Botón "Promover a Superadmin"
-└── AdminsList
-    └── AdminRow
-        ├── Avatar + nombre + email
-        └── Botón "Quitar acceso" (deshabilitado si es el usuario actual)
+page.tsx          ← Server Component: fetch + pasa a AdminsView
+admins-view.tsx   ← AdminsView: búsqueda de usuario para promover + lista de superadmins
+                     con botón "Quitar acceso"
+actions.ts        ← searchUsers (Server Action, migrada de fetch directo — ver docs/DEUDA.md DT-07),
+                     promoteUser, demoteUser
 ```
 
 **Promover usuario — flujo:**
@@ -205,29 +229,39 @@ Ya no podrá acceder a este panel."
 
 ## Tests
 
+**No hay test files para ninguna pantalla de `/platform`** (ni gyms, ni admins, ni
+gym-requests). Todo lo de abajo es comportamiento esperado, no verificado por CI.
+
+### Gym Requests
+```
+- Lista paginada con filtro por status
+- Cambiar status: solo ofrece las transiciones del mapa statusTransitions (frontend-only)
+- Aprobar una solicitud NO crea el gym — sigue siendo manual desde /platform/gyms/new
+```
+
 ### Gyms
 ```
-✅ Lista paginada de gyms con filtros por status
-✅ Buscar por nombre filtra resultados
-✅ Suspender gym: confirmación, ejecuta, badge cambia
-✅ Suspender gym ya suspendido: acción no disponible en el menú
-✅ Reactivar gym suspendido: disponible en el menú, ejecuta
-✅ Eliminar gym: input de confirmación con slug, botón deshabilitado hasta match
-✅ Eliminar gym con miembros: warning adicional visible
-✅ "Entrar como admin": redirect a /gym/{id}/admin/members
-✅ Crear gym: auto-generación de slug en tiempo real
-✅ Crear gym: slug con caracteres inválidos → error inline
-✅ Crear gym: slug duplicado → error 409 del API
-✅ Crear gym: éxito → redirect a detalle con toast
+- Lista paginada de gyms con filtros por status
+- Buscar por nombre filtra resultados
+- Suspender gym: confirmación, ejecuta, badge cambia
+- Suspender gym ya suspendido: acción no disponible en el menú
+- Reactivar gym suspendido: disponible en el menú, ejecuta
+- Eliminar gym: input de confirmación con slug, botón deshabilitado hasta match
+- Eliminar gym con miembros: warning adicional visible
+- "Entrar como admin": redirect a /gym/{id}/admin/members
+- Crear gym: auto-generación de slug en tiempo real
+- Crear gym: slug con caracteres inválidos → error inline
+- Crear gym: slug duplicado → error 409 del API
+- Crear gym: éxito → redirect a detalle con toast
 ```
 
 ### Superadmins
 ```
-✅ Lista de superadmins se carga correctamente
-✅ Usuario actual aparece destacado y sin botón "Quitar acceso"
-✅ Buscar usuario para promover: resultados en tiempo real
-✅ Promover usuario: confirmación, ejecuta, aparece en lista
-✅ Quitar acceso: confirmación, ejecuta, desaparece de lista
-✅ Quitar acceso al último superadmin: toast de error 409
-✅ Quitar acceso a sí mismo: botón deshabilitado
+- Lista de superadmins se carga correctamente
+- Usuario actual aparece destacado y sin botón "Quitar acceso"
+- Buscar usuario para promover: resultados en tiempo real
+- Promover usuario: confirmación, ejecuta, aparece en lista
+- Quitar acceso: confirmación, ejecuta, desaparece de lista
+- Quitar acceso al último superadmin: toast de error 409
+- Quitar acceso a sí mismo: botón deshabilitado
 ```
