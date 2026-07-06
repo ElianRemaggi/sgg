@@ -1,6 +1,7 @@
 package com.sgg.training.controller;
 
 import com.sgg.common.dto.ApiResponse;
+import com.sgg.common.dto.PageResponse;
 import com.sgg.common.exception.BusinessException;
 import com.sgg.training.dto.CreateRoutineTemplateRequest;
 import com.sgg.training.dto.RoutineTemplateDetailDto;
@@ -9,6 +10,8 @@ import com.sgg.training.service.RoutineExportService;
 import com.sgg.training.service.RoutineTemplateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -17,7 +20,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.text.Normalizer;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/gyms/{gymId}/coach/templates")
@@ -29,9 +31,12 @@ public class RoutineTemplateController {
 
     @GetMapping
     @PreAuthorize("@gymAccessChecker.isCoach(#gymId) or hasRole('SUPERADMIN')")
-    public ResponseEntity<ApiResponse<List<RoutineTemplateSummaryDto>>> list(
-            @PathVariable Long gymId) {
-        return ResponseEntity.ok(ApiResponse.ok(templateService.findByGym(gymId)));
+    public ResponseEntity<ApiResponse<PageResponse<RoutineTemplateSummaryDto>>> list(
+            @PathVariable Long gymId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<RoutineTemplateSummaryDto> templates = templateService.findByGym(gymId, PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(templates)));
     }
 
     @GetMapping("/{templateId}")

@@ -1,6 +1,8 @@
 package com.sgg.training.repository;
 
 import com.sgg.training.entity.RoutineTemplate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,5 +25,5 @@ public interface RoutineTemplateRepository extends JpaRepository<RoutineTemplate
         WHERE rt.gymId = :gymId AND rt.deletedAt IS NULL
         ORDER BY rt.createdAt DESC
     """)
-    List<RoutineTemplate> findByGymIdAndNotDeleted(@Param("gymId") Long gymId);
+    Page<RoutineTemplate> findByGymIdAndNotDeleted(@Param("gymId") Long gymId, Pageable pageable);
 }

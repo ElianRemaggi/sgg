@@ -3,12 +3,12 @@ package com.sgg.training.service;
 import com.sgg.training.dto.CreateRoutineTemplateRequest;
 import com.sgg.training.dto.RoutineTemplateDetailDto;
 import com.sgg.training.dto.RoutineTemplateSummaryDto;
-
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface RoutineTemplateService {
 
-    List<RoutineTemplateSummaryDto> findByGym(Long gymId);
+    Page<RoutineTemplateSummaryDto> findByGym(Long gymId, Pageable pageable);
 
     RoutineTemplateDetailDto findById(Long gymId, Long templateId);
 

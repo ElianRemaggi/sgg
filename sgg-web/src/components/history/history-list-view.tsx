@@ -1,25 +1,39 @@
 'use client'
 
 import Link from 'next/link'
-import { AssignmentHistorySummaryDto } from '@/lib/api/types'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { AssignmentHistorySummaryDto, PageResponse } from '@/lib/api/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Pagination } from '@/components/ui/pagination'
 import { Calendar, ChevronRight, Dumbbell, Zap } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  assignments: AssignmentHistorySummaryDto[]
-  basePath: string // /gym/[gymId]/member/history  o  /gym/[gymId]/coach/my-members/[memberId]/history
+  data: PageResponse<AssignmentHistorySummaryDto>
+  basePath: string // /gym/[gymId]/member/history  o  /gym/[gymId]/coach/history/[memberId]
 }
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-export function HistoryListView({ assignments, basePath }: Props) {
+export function HistoryListView({ data, basePath }: Props) {
+  const assignments = data.content
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [tab, setTab] = useState<'active' | 'past'>('active')
 
+  function goToPage(page: number) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', String(page))
+    router.push(`${basePath}?${params.toString()}`)
+  }
+
+  // El split activa/pasadas filtra dentro de la página actual, no del total del backend
+  // (el paginado ordena por startsAt DESC, así que la asignación activa —si existe— cae
+  // casi siempre en la página 0). La paginación de abajo solo pasa de página en "Pasadas".
   const active = assignments.filter(a => a.isActive)
   const past = assignments.filter(a => !a.isActive)
   const shown = tab === 'active' ? active : past
@@ -39,7 +53,7 @@ export function HistoryListView({ assignments, basePath }: Props) {
                 : 'text-muted-foreground hover:text-foreground border border-transparent'
             )}
           >
-            {t === 'active' ? 'Activa' : `Pasadas (${past.length})`}
+            {t === 'active' ? 'Activa' : 'Pasadas'}
           </button>
         ))}
       </div>
@@ -93,6 +107,17 @@ export function HistoryListView({ assignments, basePath }: Props) {
           </Link>
         ))}
       </div>
+
+      {tab === 'past' && (
+        <Pagination
+          page={data.page}
+          totalPages={data.totalPages}
+          totalElements={data.totalElements}
+          last={data.last}
+          onPageChange={goToPage}
+          itemLabel="asignaciones"
+        />
+      )}
     </div>
   )
 }

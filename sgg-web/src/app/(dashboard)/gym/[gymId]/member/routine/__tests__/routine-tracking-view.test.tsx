@@ -11,6 +11,10 @@ vi.mock('../actions', () => ({
   undoExercise: vi.fn(),
 }))
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}))
+
 import * as actionsModule from '../actions'
 const completeExercise = vi.mocked(actionsModule.completeExercise)
 const undoExercise = vi.mocked(actionsModule.undoExercise)

@@ -13,6 +13,8 @@ import com.sgg.training.repository.RoutineTemplateRepository;
 import com.sgg.training.repository.TemplateBlockRepository;
 import com.sgg.training.repository.TemplateExerciseRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +47,12 @@ public class RoutineQueryServiceImpl implements RoutineQueryService {
     public List<AssignmentInfo> findMemberAssignments(Long userId, Long gymId) {
         return assignmentRepository.findByMemberUserIdAndGymIdOrderByStartsAtDesc(userId, gymId)
                 .stream().map(this::toInfo).toList();
+    }
+
+    @Override
+    public Page<AssignmentInfo> findMemberAssignments(Long userId, Long gymId, Pageable pageable) {
+        return assignmentRepository.findByMemberUserIdAndGymIdOrderByStartsAtDesc(userId, gymId, pageable)
+                .map(this::toInfo);
     }
 
     @Override

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { useToast } from '@/components/ui/toast'
+import { Pagination } from '@/components/ui/pagination'
 import type { PageResponse, GymMemberDto } from '@/lib/api/types'
 import { MemberActions } from './member-actions'
 import { ChangeRoleDialog } from './modals/change-role-dialog'
@@ -200,34 +201,14 @@ export function MembersView({ initialData, gymId, currentStatus, currentRole, cu
         </Table>
       )}
 
-      {initialData.totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {initialData.totalElements} miembros en total
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={initialData.page === 0}
-              onClick={() => goToPage(initialData.page - 1)}
-            >
-              Anterior
-            </Button>
-            <span className="flex items-center px-3 text-sm">
-              Página {initialData.page + 1} de {initialData.totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={initialData.last}
-              onClick={() => goToPage(initialData.page + 1)}
-            >
-              Siguiente
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        page={initialData.page}
+        totalPages={initialData.totalPages}
+        totalElements={initialData.totalElements}
+        last={initialData.last}
+        onPageChange={goToPage}
+        itemLabel="miembros"
+      />
 
       <ChangeRoleDialog
         member={roleDialogMember}

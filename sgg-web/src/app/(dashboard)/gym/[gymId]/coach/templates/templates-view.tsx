@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import type { RoutineTemplateSummaryDto } from '@/lib/api/types'
+import { useRouter, useSearchParams } from 'next/navigation'
+import type { PageResponse, RoutineTemplateSummaryDto } from '@/lib/api/types'
 import { deleteTemplate, startPersonalRoutine, finishActiveRoutineAction } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Pagination } from '@/components/ui/pagination'
 import { Dumbbell, Plus, Pencil, Trash2, FileSpreadsheet, Play } from 'lucide-react'
 import {
   Dialog,
@@ -19,13 +20,15 @@ import {
 import { useToast } from '@/components/ui/toast'
 
 interface TemplatesViewProps {
-  templates: RoutineTemplateSummaryDto[]
+  data: PageResponse<RoutineTemplateSummaryDto>
   gymId: string
   isPersonalGym?: boolean
 }
 
-export function TemplatesView({ templates, gymId, isPersonalGym = false }: TemplatesViewProps) {
+export function TemplatesView({ data, gymId, isPersonalGym = false }: TemplatesViewProps) {
+  const templates = data.content
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [deleteTarget, setDeleteTarget] = useState<RoutineTemplateSummaryDto | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [startingId, setStartingId] = useState<number | null>(null)
@@ -86,11 +89,17 @@ export function TemplatesView({ templates, gymId, isPersonalGym = false }: Templ
     }
   }
 
+  function goToPage(page: number) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', String(page))
+    router.push(`/gym/${gymId}/coach/templates?${params.toString()}`)
+  }
+
   return (
     <>
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {templates.length} plantilla{templates.length !== 1 ? 's' : ''}
+          {data.totalElements} plantilla{data.totalElements !== 1 ? 's' : ''}
         </p>
         <Link href={`/gym/${gymId}/coach/templates/new`}>
           <Button>
@@ -173,6 +182,15 @@ export function TemplatesView({ templates, gymId, isPersonalGym = false }: Templ
           ))}
         </div>
       )}
+
+      <Pagination
+        page={data.page}
+        totalPages={data.totalPages}
+        totalElements={data.totalElements}
+        last={data.last}
+        onPageChange={goToPage}
+        itemLabel="plantillas"
+      />
 
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <DialogContent>

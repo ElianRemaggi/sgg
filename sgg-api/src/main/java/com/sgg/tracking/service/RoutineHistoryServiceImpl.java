@@ -9,6 +9,8 @@ import com.sgg.training.dto.BlockWithExercisesInfo;
 import com.sgg.training.dto.ExerciseWithBlockInfo;
 import com.sgg.training.service.RoutineQueryService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,31 +31,29 @@ public class RoutineHistoryServiceImpl implements RoutineHistoryService {
     private final ExerciseCompletionRepository completionRepository;
 
     @Override
-    public List<AssignmentHistorySummaryDto> getMemberHistory(Long gymId, Long userId) {
-        List<AssignmentInfo> assignments = routineQueryService.findMemberAssignments(userId, gymId);
-        if (assignments.isEmpty()) return List.of();
+    public Page<AssignmentHistorySummaryDto> getMemberHistory(Long gymId, Long userId, Pageable pageable) {
+        Page<AssignmentInfo> assignments = routineQueryService.findMemberAssignments(userId, gymId, pageable);
+        if (assignments.isEmpty()) return Page.empty(pageable);
 
-        List<Long> templateIds = assignments.stream().map(AssignmentInfo::templateId).distinct().toList();
+        List<Long> templateIds = assignments.getContent().stream().map(AssignmentInfo::templateId).distinct().toList();
         Map<Long, String> templateNames = routineQueryService.findTemplateNames(templateIds);
 
-        List<Long> assignmentIds = assignments.stream().map(AssignmentInfo::id).toList();
+        List<Long> assignmentIds = assignments.getContent().stream().map(AssignmentInfo::id).toList();
         Map<Long, ExerciseCompletionRepository.AssignmentStatsRow> statsMap =
                 completionRepository.findStatsBatch(userId, assignmentIds).stream()
                         .collect(Collectors.toMap(
                                 ExerciseCompletionRepository.AssignmentStatsRow::getAssignmentId, s -> s));
 
-        return assignments.stream()
-                .map(a -> {
-                    String name = templateNames.getOrDefault(a.templateId(), "Plantilla eliminada");
-                    ExerciseCompletionRepository.AssignmentStatsRow stats = statsMap.get(a.id());
-                    long sessionDays = stats != null ? stats.getSessionDays() : 0L;
-                    long totalCompletions = stats != null ? stats.getTotalCompletions() : 0L;
-                    LocalDateTime lastActivityAt = stats != null ? stats.getLastActivityAt() : null;
-                    return new AssignmentHistorySummaryDto(
-                            a.id(), name, a.startsAt(), a.endsAt(),
-                            isAssignmentActive(a), sessionDays, totalCompletions, lastActivityAt);
-                })
-                .toList();
+        return assignments.map(a -> {
+            String name = templateNames.getOrDefault(a.templateId(), "Plantilla eliminada");
+            ExerciseCompletionRepository.AssignmentStatsRow stats = statsMap.get(a.id());
+            long sessionDays = stats != null ? stats.getSessionDays() : 0L;
+            long totalCompletions = stats != null ? stats.getTotalCompletions() : 0L;
+            LocalDateTime lastActivityAt = stats != null ? stats.getLastActivityAt() : null;
+            return new AssignmentHistorySummaryDto(
+                    a.id(), name, a.startsAt(), a.endsAt(),
+                    isAssignmentActive(a), sessionDays, totalCompletions, lastActivityAt);
+        });
     }
 
     @Override

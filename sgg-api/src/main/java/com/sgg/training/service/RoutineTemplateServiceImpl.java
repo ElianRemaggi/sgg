@@ -17,6 +17,8 @@ import com.sgg.training.repository.TemplateExerciseRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,23 +46,23 @@ public class RoutineTemplateServiceImpl implements RoutineTemplateService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<RoutineTemplateSummaryDto> findByGym(Long gymId) {
-        List<RoutineTemplate> templates = templateRepository.findByGymIdAndNotDeleted(gymId);
-        if (templates.isEmpty()) return List.of();
+    public Page<RoutineTemplateSummaryDto> findByGym(Long gymId, Pageable pageable) {
+        Page<RoutineTemplate> templates = templateRepository.findByGymIdAndNotDeleted(gymId, pageable);
+        if (templates.isEmpty()) return Page.empty(pageable);
 
-        // Batch fetch blocks for all templates (fix N+1)
-        List<Long> templateIds = templates.stream().map(RoutineTemplate::getId).toList();
+        // Batch fetch blocks for all templates in this page (fix N+1)
+        List<Long> templateIds = templates.getContent().stream().map(RoutineTemplate::getId).toList();
         Map<Long, Long> blocksCountByTemplate = blockRepository.findByTemplateIdInOrderBySortOrder(templateIds)
             .stream()
             .collect(Collectors.groupingBy(TemplateBlock::getTemplateId, Collectors.counting()));
 
-        // Batch fetch creators (fix N+1)
-        List<Long> creatorIds = templates.stream().map(RoutineTemplate::getCreatedBy).distinct().toList();
+        // Batch fetch creators for this page (fix N+1)
+        List<Long> creatorIds = templates.getContent().stream().map(RoutineTemplate::getCreatedBy).distinct().toList();
         Map<Long, User> usersById = userRepository.findAllById(creatorIds)
             .stream()
             .collect(Collectors.toMap(User::getId, Function.identity()));
 
-        return templates.stream().map(t -> {
+        return templates.map(t -> {
             User creator = usersById.get(t.getCreatedBy());
             return new RoutineTemplateSummaryDto(
                 t.getId(),
@@ -70,7 +72,7 @@ public class RoutineTemplateServiceImpl implements RoutineTemplateService {
                 creator != null ? new RoutineTemplateSummaryDto.CreatorDto(creator.getId(), creator.getFullName()) : null,
                 t.getCreatedAt()
             );
-        }).toList();
+        });
     }
 
     @Override

@@ -5,6 +5,9 @@ import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.UserRepository;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+import com.sgg.tenancy.entity.GymStatus;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
 import com.sgg.tracking.entity.ExerciseCompletion;
@@ -117,10 +120,10 @@ class CoachHistoryControllerTest extends BaseIntegrationTest {
                 .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject("coach-ch-001"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data").isArray())
-            .andExpect(jsonPath("$.data[0].id").value(assignment.getId()))
-            .andExpect(jsonPath("$.data[0].templateName").value("Hipertrofia"))
-            .andExpect(jsonPath("$.data[0].totalCompletions").value(1));
+            .andExpect(jsonPath("$.data.content").isArray())
+            .andExpect(jsonPath("$.data.content[0].id").value(assignment.getId()))
+            .andExpect(jsonPath("$.data.content[0].templateName").value("Hipertrofia"))
+            .andExpect(jsonPath("$.data.content[0].totalCompletions").value(1));
     }
 
     @Test
@@ -225,7 +228,7 @@ class CoachHistoryControllerTest extends BaseIntegrationTest {
         g.setName(name);
         g.setSlug(slug);
         g.setOwnerUserId(ownerId);
-        g.setStatus("ACTIVE");
+        g.setStatus(GymStatus.ACTIVE);
         return gymRepository.save(g);
     }
 
@@ -233,8 +236,8 @@ class CoachHistoryControllerTest extends BaseIntegrationTest {
         GymMember m = new GymMember();
         m.setGymId(gymId);
         m.setUserId(userId);
-        m.setRole(role);
-        m.setStatus(status);
+        m.setRole(GymMemberRole.valueOf(role));
+        m.setStatus(GymMemberStatus.valueOf(status));
         gymMemberRepository.save(m);
     }
 }

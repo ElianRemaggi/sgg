@@ -1,20 +1,25 @@
 import { apiClient } from '@/lib/api/client'
-import type { ApiResponse, AssignmentHistorySummaryDto } from '@/lib/api/types'
+import type { ApiResponse, AssignmentHistorySummaryDto, PageResponse } from '@/lib/api/types'
 import { HistoryListView } from '@/components/history/history-list-view'
 import { History } from 'lucide-react'
 
 export default async function MemberHistoryPage({
   params,
+  searchParams,
 }: {
   params: { gymId: string }
+  searchParams: { page?: string }
 }) {
-  let assignments: AssignmentHistorySummaryDto[] = []
+  const page = searchParams.page ?? '0'
+  let data: PageResponse<AssignmentHistorySummaryDto> = {
+    content: [], page: 0, size: 20, totalElements: 0, totalPages: 0, last: true,
+  }
 
   try {
-    const res = await apiClient<ApiResponse<AssignmentHistorySummaryDto[]>>(
-      `/api/gyms/${params.gymId}/member/history/assignments`
+    const res = await apiClient<ApiResponse<PageResponse<AssignmentHistorySummaryDto>>>(
+      `/api/gyms/${params.gymId}/member/history/assignments?page=${page}&size=20`
     )
-    assignments = res.data ?? []
+    data = res.data
   } catch {
     // Sin rutinas aún
   }
@@ -29,10 +34,7 @@ export default async function MemberHistoryPage({
         </div>
       </div>
 
-      <HistoryListView
-        assignments={assignments}
-        basePath={`/gym/${params.gymId}/member/history`}
-      />
+      <HistoryListView data={data} basePath={`/gym/${params.gymId}/member/history`} />
     </div>
   )
 }

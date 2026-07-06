@@ -9,7 +9,21 @@ import type {
   CoachSummaryDto,
   AssignedMemberDto,
   GymMemberDto,
+  PageResponse,
 } from '@/lib/api/types'
+
+export const aPageResponse = <T>(
+  content: T[],
+  overrides: Partial<Omit<PageResponse<T>, 'content'>> = {}
+): PageResponse<T> => ({
+  content,
+  page: 0,
+  size: 20,
+  totalElements: content.length,
+  totalPages: content.length > 0 ? 1 : 0,
+  last: true,
+  ...overrides,
+})
 
 export const aCoach = (overrides: Partial<CoachSummaryDto> = {}): CoachSummaryDto => ({
   userId: 10,

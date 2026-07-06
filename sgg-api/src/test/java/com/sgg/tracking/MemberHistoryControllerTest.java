@@ -5,6 +5,9 @@ import com.sgg.identity.entity.User;
 import com.sgg.identity.repository.UserRepository;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.GymMemberRole;
+import com.sgg.tenancy.entity.GymMemberStatus;
+import com.sgg.tenancy.entity.GymStatus;
 import com.sgg.tenancy.repository.GymMemberRepository;
 import com.sgg.tenancy.repository.GymRepository;
 import com.sgg.tracking.entity.ExerciseCompletion;
@@ -123,12 +126,13 @@ class MemberHistoryControllerTest extends BaseIntegrationTest {
                 .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject("member-hist-001"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data").isArray())
-            .andExpect(jsonPath("$.data[0].id").value(assignment.getId()))
-            .andExpect(jsonPath("$.data[0].templateName").value("Fuerza Base"))
-            .andExpect(jsonPath("$.data[0].isActive").value(true))
-            .andExpect(jsonPath("$.data[0].totalCompletions").value(1))
-            .andExpect(jsonPath("$.data[0].totalSessionDays").value(1));
+            .andExpect(jsonPath("$.data.content").isArray())
+            .andExpect(jsonPath("$.data.content[0].id").value(assignment.getId()))
+            .andExpect(jsonPath("$.data.content[0].templateName").value("Fuerza Base"))
+            .andExpect(jsonPath("$.data.content[0].isActive").value(true))
+            .andExpect(jsonPath("$.data.content[0].totalCompletions").value(1))
+            .andExpect(jsonPath("$.data.content[0].totalSessionDays").value(1))
+            .andExpect(jsonPath("$.data.totalElements").value(1));
     }
 
     @Test
@@ -136,8 +140,8 @@ class MemberHistoryControllerTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/gyms/{gymId}/member/history/assignments", gym.getId())
                 .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject("member-hist-001"))))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data[0].totalCompletions").value(0))
-            .andExpect(jsonPath("$.data[0].totalSessionDays").value(0));
+            .andExpect(jsonPath("$.data.content[0].totalCompletions").value(0))
+            .andExpect(jsonPath("$.data.content[0].totalSessionDays").value(0));
     }
 
     @Test
@@ -145,7 +149,7 @@ class MemberHistoryControllerTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/gyms/{gymId}/member/history/assignments", gym.getId())
                 .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject("other-hist-001"))))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data").isEmpty());
+            .andExpect(jsonPath("$.data.content").isEmpty());
     }
 
     @Test
@@ -185,17 +189,17 @@ class MemberHistoryControllerTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/gyms/{gymId}/member/history/assignments", gym.getId())
                 .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(j -> j.subject("member-hist-001"))))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.length()").value(2))
+            .andExpect(jsonPath("$.data.content.length()").value(2))
             // La más reciente (activa) va primero
-            .andExpect(jsonPath("$.data[0].id").value(assignment.getId()))
-            .andExpect(jsonPath("$.data[0].isActive").value(true))
-            .andExpect(jsonPath("$.data[0].totalCompletions").value(2))
-            .andExpect(jsonPath("$.data[0].totalSessionDays").value(2))
+            .andExpect(jsonPath("$.data.content[0].id").value(assignment.getId()))
+            .andExpect(jsonPath("$.data.content[0].isActive").value(true))
+            .andExpect(jsonPath("$.data.content[0].totalCompletions").value(2))
+            .andExpect(jsonPath("$.data.content[0].totalSessionDays").value(2))
             // La anterior (finalizada) va segunda con sus propios stats
-            .andExpect(jsonPath("$.data[1].id").value(olderAssignmentId))
-            .andExpect(jsonPath("$.data[1].isActive").value(false))
-            .andExpect(jsonPath("$.data[1].totalCompletions").value(3))
-            .andExpect(jsonPath("$.data[1].totalSessionDays").value(2));
+            .andExpect(jsonPath("$.data.content[1].id").value(olderAssignmentId))
+            .andExpect(jsonPath("$.data.content[1].isActive").value(false))
+            .andExpect(jsonPath("$.data.content[1].totalCompletions").value(3))
+            .andExpect(jsonPath("$.data.content[1].totalSessionDays").value(2));
     }
 
     // ── GET /assignments/{assignmentId} ───────────────────────────────────────
@@ -325,7 +329,7 @@ class MemberHistoryControllerTest extends BaseIntegrationTest {
         g.setName(name);
         g.setSlug(slug);
         g.setOwnerUserId(ownerId);
-        g.setStatus("ACTIVE");
+        g.setStatus(GymStatus.ACTIVE);
         return gymRepository.save(g);
     }
 
@@ -333,8 +337,8 @@ class MemberHistoryControllerTest extends BaseIntegrationTest {
         GymMember m = new GymMember();
         m.setGymId(gymId);
         m.setUserId(userId);
-        m.setRole(role);
-        m.setStatus(status);
+        m.setRole(GymMemberRole.valueOf(role));
+        m.setStatus(GymMemberStatus.valueOf(status));
         gymMemberRepository.save(m);
     }
 }
